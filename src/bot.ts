@@ -1,7 +1,8 @@
 import { Telegraf } from "telegraf";
 import { BOT_TOKEN } from "./config";
-import { writeFile, unlink } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { getFile, downloadFile } from "./routes";
+import * as XLSX from "xlsx";
 
 if (!BOT_TOKEN) {
   console.error("BOT_TOKEN is not set, quitting...");
@@ -41,17 +42,15 @@ bot.on("document", async (ctx) => {
   console.log("File saved!");
 
   await ctx.reply("Excel-filu");
-
-  console.log("Deleting file...");
-
-  setTimeout(() => {
-    unlink("test.xlsx")
-      .then(() => console.log("File deleted!"))
-      .catch((err) => console.error(err));
-  }, 5000);
 });
 
 bot.command("kuvaaja", async (ctx) => {
+  const wb = XLSX.readFile("test.xlsx", { cellDates: true });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const data = XLSX.utils.sheet_to_json(ws, {
+    header: ["date", "name", "msg", "amount"],
+  });
+  console.log(data);
   await ctx.reply("insert kuvaaja");
 });
 
