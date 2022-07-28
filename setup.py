@@ -6,6 +6,7 @@ cur = con.cursor()
 try:
     cur.execute('''CREATE TABLE chats(
                     chat_id INTEGER PRIMARY KEY,
+                    title TEXT,
                     admin INTEGER,
                     prev_winner INTEGER,
                     cur_winner INTEGER
