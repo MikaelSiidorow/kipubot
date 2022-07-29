@@ -338,10 +338,16 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     graph_path = base_path + 'graph.png'
 
     try:
-        _, start_str, end_str, _entry_fee = (
+        query_result = (
             cur.execute(
                 f'SELECT * FROM raffle WHERE chat_id = {chat_id}')
             .fetchone())
+
+        if not query_result:
+            await update.message.reply_text(f'No raffle data found in {chat_title}!')
+            return
+
+        _, start_str, end_str, _entry_fee = query_result
 
         start_date = pd.to_datetime(start_str)
         end_date = pd.to_datetime(end_str)
@@ -443,6 +449,7 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await context.bot.send_sticker(
             chat_id=chat_id,
             sticker='CAACAgQAAxkBAAIBPmLicTHP2Xv8IcFzxHYocjLRFBvQAAI5AAMcLHsXd9jLHwYNcSEpBA')
+        await update.message.reply_text(f'Join the raffles in {title} by typing /moro or /hello!')
 
 
 async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
