@@ -347,6 +347,10 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         df = pd.read_excel(excel_path, usecols='A,D', header=None, names=[
             'date', 'amount'], parse_dates=True)
 
+        df.drop(df[df['amount'] <= 0].index, inplace=True)
+        df.drop(df[df['date'] > end_date].index, inplace=True)
+        df.drop(df[df['date'] < start_date].index, inplace=True)
+
         df['datenum'] = pd.to_numeric(df['date']) // 1_000_000_000
 
         df.set_index('date', inplace=True)
