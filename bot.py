@@ -442,15 +442,64 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     # -> set the winner to the given username
 
     ent = update.message.entities
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
 
     if len(ent) != 2 or ent[1].type != MessageEntityType.MENTION:
         await update.message.reply_text('Please use the format /winner @username')
 
     else:
+        username = update.message.text.split(" ")[1][1:]
 
-        _username = update.message.text.split(" ")[1]
+        try:
+            is_admin = (
+                cur.execute(
+                    f'''SELECT admin
+                        FROM chat
+                        WHERE admin = {user_id}''').fetchone())
+            is_winner = (
+                cur.execute(
+                    f'''SELECT prev_winner
+                        FROM chat
+                        WHERE prev_winner = {user_id} OR
+                                cur_winner = {user_id}''').fetchone())
 
-        print('winner:' + str(update))
+            if not is_admin and not is_winner:
+                await update.message.reply_text('You are not allowed to use this command!')
+                return
+            winner_id = (
+                cur.execute(
+                    '''SELECT user.user_id, user.username
+                    FROM user, in_chat
+                    WHERE chat_id = ?
+                        AND user.user_id = in_chat.user_id
+                        AND username = ?''',
+                    (chat_id, username)).fetchone())
+            if not winner_id:
+                await update.message.reply_text('Error getting user!\n' +
+                                                'Perhaps they haven\'t /moro ed? 🤔')
+                return
+
+            if winner_id[0] == user_id and not is_admin:
+                await update.message.reply_text('You are already the winner!')
+                return
+
+            if is_admin:
+                cur.execute(f'''UPDATE chat
+                                SET prev_winner=cur_winner,
+                                    cur_winner={winner_id[0]}
+                                WHERE chat_id={chat_id}''')
+            else:
+                cur.execute(f'''UPDATE chat
+                                SET prev_winner={user_id},
+                                    cur_winner={winner_id[0]}'
+                                WHERE chat_id={chat_id}''')
+        except sqlite3.Error as e:
+            print(e)
+            await update.message.reply_text('Error getting user!\n' +
+                                            'Perhaps they haven\' /moro ed? 🤔')
+    con.commit()
+    await update.message.reply_text(f'{username} is the new winner!')
 
 
 async def chat_only(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
