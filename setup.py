@@ -1,4 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import sqlite3
+import os
+
+if not os.path.exists('data'):
+    os.mkdir('data')
 
 con = sqlite3.connect('data/.db')
 cur = con.cursor()
