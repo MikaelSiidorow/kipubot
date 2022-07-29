@@ -4,8 +4,10 @@ import sqlite3
 import sys
 from typing import Union
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+import numpy as np
+from scipy import stats
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatMemberStatus, MessageEntityType
@@ -331,17 +333,19 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     graph_path = base_path + 'graph.png'
 
     try:
-        _, start_date, end_date, _entry_fee = (
+        _, start_str, end_str, _entry_fee = (
             cur.execute(
                 f'SELECT * FROM raffle WHERE chat_id = {chat_id}')
             .fetchone())
 
-        # origin = np.datetime64('0000-01-01', 'D') - np.timedelta64(1, 'D')
+        start_date = pd.to_datetime(start_str)
+        end_date = pd.to_datetime(end_str)
+        _days = (end_date - start_date).days
 
         df = pd.read_excel(excel_path, usecols='A,D', header=None, names=[
             'date', 'amount'], parse_dates=True)
 
-        df['datenum'] = pd.to_numeric(df['date']) // 1000
+        df['datenum'] = pd.to_numeric(df['date']) // 1_000_000_000
 
         df.set_index('date', inplace=True)
 
@@ -349,26 +353,45 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
         df['amount'] = df['amount'].cumsum()
 
-        df['amount'].plot(style='xr')
+        y = df['amount'].values
+        x = df['datenum'].values
 
-        y = df['amount'].values[::, None]
-        x = df['datenum'].values[::, None]
+        slope, intercept, _r, _p, sterr = stats.linregress(x, y)
 
-        model = LinearRegression().fit(x, y)
+        df['y_pred'] = slope * x + intercept
 
-        y_pred = model.predict(x)
+        n = len(x)
+        t = stats.t.ppf(0.975, n-2)
+        pi = t * sterr * np.sqrt(1 + 1/n +
+                                 (x-x.mean())**2/sum((x-x.mean())**2))
 
-        df['y_pred'] = y_pred
+        df['max_pred'] = df['y_pred'] + pi * 1e3
+        df['min_pred'] = df['y_pred'] - pi * 1e3
 
-        df['y_pred'].plot()
+        _fig, ax = plt.subplots()
 
-        plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
+        df['amount'].plot(ax=ax, style='xr')
+        df['y_pred'].plot(ax=ax, color='orange')
+        df['min_pred'].plot(ax=ax, style='--b')
+        df['max_pred'].plot(ax=ax, style='--b')
+
+        # plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
         total = df['amount'].max()
         plt.title(f'{chat_title} -- Pool {total}€')
         plt.xlabel('Time')
         plt.ylabel('Pool (€)')
-        plt.grid(True, which='minor')
-        plt.legend(['Data', 'Linear Fit'])
+        # plt.xticks(np.linspace(start_date.toordinal(),
+        #           end_date.toordinal(), days*6+1))
+        # plt.ticklabel_format({},axis='x')
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
+
+        ax.grid(visible=True, which='minor',
+                axis='both', linestyle='--', linewidth=1)
+        # plt.tick_params(axis='x', which='both', length=0)
+        # plt.tick_params(axis='y', which='both', length=0)
+        # plt.setxticks(pd.to_datetime(start_date), pd.to_datetime(end_date))
+        # plt.setyticks(np.arange(0, total, 100))
+        ax.legend(['Data', 'Linear Fit', 'Confidence Intervals'])
 
         plt.savefig(graph_path)
 
