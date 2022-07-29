@@ -5,6 +5,7 @@ import sys
 from typing import Union
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatMemberStatus, MessageEntityType
@@ -330,27 +331,44 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     graph_path = base_path + 'graph.png'
 
     try:
-        _, start_date, end_date, entry_fee = (
+        _, start_date, end_date, _entry_fee = (
             cur.execute(
                 f'SELECT * FROM raffle WHERE chat_id = {chat_id}')
             .fetchone())
 
+        # origin = np.datetime64('0000-01-01', 'D') - np.timedelta64(1, 'D')
+
         df = pd.read_excel(excel_path, usecols='A,D', header=None, names=[
             'date', 'amount'], parse_dates=True)
+
+        df['datenum'] = pd.to_numeric(df['date']) // 1000
+
         df.set_index('date', inplace=True)
+
         df = df.iloc[::-1]
 
         df['amount'] = df['amount'].cumsum()
+
         df['amount'].plot(style='xr')
 
-        # linregress
+        y = df['amount'].values[::, None]
+        x = df['datenum'].values[::, None]
 
+        model = LinearRegression().fit(x, y)
+
+        y_pred = model.predict(x)
+
+        df['y_pred'] = y_pred
+
+        df['y_pred'].plot()
+
+        plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
         total = df['amount'].max()
-        plt.title(f'{chat_title} stonks, Pool {total}€')
+        plt.title(f'{chat_title} -- Pool {total}€')
         plt.xlabel('Time')
         plt.ylabel('Pool (€)')
         plt.grid(True, which='minor')
-        plt.legend(['Data'])
+        plt.legend(['Data', 'Linear Fit'])
 
         plt.savefig(graph_path)
 
