@@ -46,8 +46,10 @@ print('Connected!')
 
 
 async def start(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text('Use the given commands or send me an Excel-file' +
-                                    ' from MobilePay if you\'re the host of a raffle!')
+    with open('info.png', 'rb') as f:
+        await update.message.reply_photo(
+            caption='Use the given commands or send me an Excel-file ' +
+                    'from MobilePay if you\'re the host of a raffle!', photo=f)
 
 
 async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -375,7 +377,7 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         df['min_pred'].plot(ax=ax, style='--b')
         df['max_pred'].plot(ax=ax, style='--b')
 
-        # plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
+        plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
         total = df['amount'].max()
         plt.title(f'{chat_title} -- Pool {total}€')
         plt.xlabel('Time')
