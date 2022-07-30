@@ -51,6 +51,7 @@ tzlocal = "==4.2"
 wrapt = "==1.14.1"
 
 [dev-packages]
+watchgod = "*"
 
 [requires]
 python_version = "3.8"
