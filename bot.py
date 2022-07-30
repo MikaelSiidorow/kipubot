@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# TODO: https://code-specialist.com/python/pkg-resources
+
+# TODO: refactor bot.py into ./handlers/xx.py and ./utils.py
+
 import os
 import logging
 import sqlite3
@@ -329,6 +333,15 @@ async def timeout(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    # https://apmonitor.com/che263/index.php/Main/PythonRegressionStatistics
+    # https://medium.com/python-data-analysis/linear-regression-on-time-series-data-like-stock-price-514a42d5ac8a
+    # https://www.mathworks.com/help/stats/linearmodel.predict.html
+    # https://stackoverflow.com/questions/27164114/show-confidence-limits-and-prediction-limits-in-scatter-plot
+    # http://www.xavierdupre.fr/app/mlinsights/helpsphinx/notebooks/regression_confidence_interval.html
+    # https://gist.github.com/riccardoscalco/5356167
+    # https://pythonguides.com/scipy-confidence-interval/
+    # https://www.graphpad.com/guides/prism/6/statistics/confidence_intervals2.htm
+
     chat_id = update.effective_chat.id
     chat_title = update.effective_chat.title
 
@@ -356,6 +369,8 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         df = pd.read_excel(excel_path, usecols='A,D', header=None, names=[
             'date', 'amount'], parse_dates=True)
 
+        # TODO: reply with a warning if we cut data here
+        # --> users don't accidentally cut data with wrong dates
         df.drop(df[df['amount'] <= 0].index, inplace=True)
         df.drop(df[df['date'] > end_date].index, inplace=True)
         df.drop(df[df['date'] < start_date].index, inplace=True)
@@ -375,6 +390,9 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
         df['y_pred'] = slope * x + intercept
 
+        # FIXME: fix/improve confidence intervals calculations
+        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.linregress.html#scipy.stats.linregress
+        # ^ good source + others at the top of the func
         n = len(x)
         t = stats.t.ppf(0.975, n-2)
         pi = t * sterr * np.sqrt(1 + 1/n +
@@ -395,11 +413,11 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         plt.title(f'{chat_title} -- Pool {total}€')
         plt.xlabel('Time')
         plt.ylabel('Pool (€)')
-        # plt.xticks(np.linspace(start_date.toordinal(),
-        #           end_date.toordinal(), days*6+1))
-        # plt.ticklabel_format({},axis='x')
+
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
 
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.grid.html
+        # FIXME: fix grid (prob needs working xticks)
         ax.grid(visible=True, which='minor',
                 axis='both', linestyle='--', linewidth=1)
         # plt.tick_params(axis='x', which='both', length=0)
@@ -586,7 +604,7 @@ def main() -> None:
             ConversationHandler.TIMEOUT: [CallbackQueryHandler(timeout)]
         },
         fallbacks=[CallbackQueryHandler(setup_raffle)],
-        conversation_timeout=60
+        conversation_timeout=120
     ))
 
     # test handler for all messages
