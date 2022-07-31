@@ -2,7 +2,9 @@
 url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
-
+[scripts]
+setup="python3 setup.py"
+dev="watchgod bot.main"
 [packages]
 anyio = "==3.6.1"
 apscheduler = "==3.9.1"
