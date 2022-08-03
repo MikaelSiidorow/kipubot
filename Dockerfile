@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM python:3.8-slim as base
 
 # Setup ENV variables here (if needed in the future)
