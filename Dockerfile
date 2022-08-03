@@ -1,21 +1,42 @@
-FROM python:3.8-slim-buster as base
+FROM python:3.8-slim as base
 
-WORKDIR /bot
+# Setup ENV variables here (if needed in the future)
 
+
+FROM base as python-deps
+
+# Install pipenv
 RUN pip3 install pipenv
 
-FROM base as install-stage
-
+# Install python dependencies in /.venv
 COPY Pipfile .
 COPY Pipfile.lock .
+RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
 
-#install dependencies
-RUN pipenv install
-# Setup the database
-COPY setup.py .
-RUN python3 setup.py
 
-FROM install-stage as run-stage
+FROM base as setup-database
+
+# Copy virtual env from python-deps stage
+COPY --from=python-deps /.venv /.venv
+ENV PATH="/.venv/bin:$PATH"
+
+# Setup workdir
+WORKDIR /bot
+
+# Initialize Database
+COPY setup_db.py .
+RUN python3 setup_db.py
+
+
+FROM setup-database as runtime
+
+# Install app into container
 COPY . .
+
+# Create a non-root user and add permission to access /bot folder
+RUN adduser -u 5678 --disabled-password --gecos "" botuser
+RUN chown -R botuser /bot
+USER botuser
+
 # Run the app
-CMD [ "pipenv","run","python3", "./bot.py" ]
+CMD [ "python3", "bot.py" ]

@@ -1,5 +1,9 @@
-env/
-.env
-data/
-.dockerignore
-.gitignore
+# Ignore everything
+**
+
+# Except for dependencies and source code
+!Pipfile
+!Pipfile.lock
+!info.png
+!bot.py
+!setup_db.py
