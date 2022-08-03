@@ -586,7 +586,7 @@ def main() -> None:
             ConversationHandler.TIMEOUT: [CallbackQueryHandler(timeout)]
         },
         fallbacks=[CallbackQueryHandler(setup_raffle)],
-        conversation_timeout=60
+        conversation_timeout=120
     ))
 
     # test handler for all messages
