@@ -4,6 +4,5 @@
 # Except for dependencies and source code
 !Pipfile
 !Pipfile.lock
-!info.png
-!bot.py
+!kipubot
 !setup_db.py

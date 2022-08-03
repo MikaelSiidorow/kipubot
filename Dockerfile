@@ -40,4 +40,4 @@ RUN chown -R botuser /bot
 USER botuser
 
 # Run the app
-CMD [ "python3", "bot.py" ]
+CMD [ "python3", "./kipubot/bot.py" ]
