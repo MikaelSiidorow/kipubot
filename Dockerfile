@@ -1,22 +1,43 @@
 # syntax=docker/dockerfile:1
+FROM python:3.8-slim as base
 
-FROM python:3.8-slim-buster
+# Setup ENV variables here (if needed in the future)
 
+
+FROM base as python-deps
+
+# Install pipenv
+RUN pip3 install pipenv
+
+# Install python dependencies in /.venv
+COPY Pipfile .
+COPY Pipfile.lock .
+RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
+
+
+FROM base as setup-database
+
+# Copy virtual env from python-deps stage
+COPY --from=python-deps /.venv /.venv
+ENV PATH="/.venv/bin:$PATH"
+
+# Setup workdir
 WORKDIR /bot
 
-# Setup venv
-ENV VIRTUAL_ENV=/opt/venv
-RUN python3 -m venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+# Initialize Database
+COPY setup_db.py .
+RUN python3 setup_db.py
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip3 install -r requirements.txt
 
-# Setup the database
-COPY setup.py setup.py
-RUN python3 setup.py
+FROM setup-database as runtime
+
+# Install app into container
+COPY . .
+
+# Create a non-root user and add permission to access /bot folder
+RUN adduser -u 5678 --disabled-password --gecos "" botuser
+RUN chown -R botuser /bot
+USER botuser
 
 # Run the app
-COPY . .
-CMD [ "python3", "./bot.py" ]
+CMD [ "python3", "bot.py" ]

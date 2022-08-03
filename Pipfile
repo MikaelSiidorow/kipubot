@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[scripts]
+setup = "python3 setup_db.py"
+start = "python3 bot.py"
+dev = "watchgod bot.main"
+
+[packages]
+pandas = "*"
+matplotlib = "*"
+scipy = "*"
+python-dotenv = "*"
+python-telegram-bot = ">=20.0a0"
+
+[dev-packages]
+watchgod = "*"
+autopep8 = "*"
+
+[requires]
+python_version = "3.8"
