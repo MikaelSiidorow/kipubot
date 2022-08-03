@@ -329,15 +329,6 @@ async def timeout(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    # https://apmonitor.com/che263/index.php/Main/PythonRegressionStatistics
-    # https://medium.com/python-data-analysis/linear-regression-on-time-series-data-like-stock-price-514a42d5ac8a
-    # https://www.mathworks.com/help/stats/linearmodel.predict.html
-    # https://stackoverflow.com/questions/27164114/show-confidence-limits-and-prediction-limits-in-scatter-plot
-    # http://www.xavierdupre.fr/app/mlinsights/helpsphinx/notebooks/regression_confidence_interval.html
-    # https://gist.github.com/riccardoscalco/5356167
-    # https://pythonguides.com/scipy-confidence-interval/
-    # https://www.graphpad.com/guides/prism/6/statistics/confidence_intervals2.htm
-
     chat_id = update.effective_chat.id
     chat_title = update.effective_chat.title
 
@@ -404,7 +395,9 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         plt.title(f'{chat_title} -- Pool {total}€')
         plt.xlabel('Time')
         plt.ylabel('Pool (€)')
-
+        # plt.xticks(np.linspace(start_date.toordinal(),
+        #           end_date.toordinal(), days*6+1))
+        # plt.ticklabel_format({},axis='x')
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
 
         ax.grid(visible=True, which='minor',
@@ -593,7 +586,7 @@ def main() -> None:
             ConversationHandler.TIMEOUT: [CallbackQueryHandler(timeout)]
         },
         fallbacks=[CallbackQueryHandler(setup_raffle)],
-        conversation_timeout=120
+        conversation_timeout=60
     ))
 
     # test handler for all messages
