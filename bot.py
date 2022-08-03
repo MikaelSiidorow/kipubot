@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# TODO: https://code-specialist.com/python/pkg-resources
-
-# TODO: refactor bot.py into ./handlers/xx.py and ./utils.py
-
 import os
 import logging
 import sqlite3
@@ -369,8 +365,6 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         df = pd.read_excel(excel_path, usecols='A,D', header=None, names=[
             'date', 'amount'], parse_dates=True)
 
-        # TODO: reply with a warning if we cut data here
-        # --> users don't accidentally cut data with wrong dates
         df.drop(df[df['amount'] <= 0].index, inplace=True)
         df.drop(df[df['date'] > end_date].index, inplace=True)
         df.drop(df[df['date'] < start_date].index, inplace=True)
@@ -390,9 +384,6 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
         df['y_pred'] = slope * x + intercept
 
-        # FIXME: fix/improve confidence intervals calculations
-        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.linregress.html#scipy.stats.linregress
-        # ^ good source + others at the top of the func
         n = len(x)
         t = stats.t.ppf(0.975, n-2)
         pi = t * sterr * np.sqrt(1 + 1/n +
@@ -416,8 +407,6 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
 
-        # https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.grid.html
-        # FIXME: fix grid (prob needs working xticks)
         ax.grid(visible=True, which='minor',
                 axis='both', linestyle='--', linewidth=1)
         # plt.tick_params(axis='x', which='both', length=0)
