@@ -6,11 +6,12 @@ Telegram bot to graph friday bottle raffle progress.
 
 ### Basic
 
+Using [pipenv](https://pipenv.pypa.io/en/latest/):
+
 1. Set `BOT_TOKEN` in .env
 2. pipenv install --dev
-3. pipenv shell
-4. python3 setup.py
-5. watchgod bot.main
+3. pipenv run setup
+4. pipenv run dev
 
 ### Docker
 
