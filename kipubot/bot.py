@@ -11,13 +11,13 @@ import psycopg
 from scipy import stats
 from config import BOT_TOKEN
 from telegram import Update
-from telegram.constants import MessageEntityType
 from telegram.ext import (ApplicationBuilder, CommandHandler,
                           ContextTypes, PicklePersistence)
 import telegram.ext.filters as Filters
 from db import get_con
 from handlers import (start_handler, moro_handler, excel_file_handler,
-                      bot_added_handler, raffle_setup_handler)
+                      bot_added_handler, winner_handler,
+                      raffle_setup_handler)
 
 
 # -- SETUP --
@@ -128,77 +128,6 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f'No data found for {chat_title}!')
 
 
-async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    # only usable by admin, previous winner (in case of typos) and current winner
-    # usage: /winner @username
-    # -> set the winner to the given username
-
-    ent = update.message.entities
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-
-    if len(ent) != 2 or ent[1].type != MessageEntityType.MENTION:
-        await update.message.reply_text('Please use the format /winner @username')
-
-    else:
-        username = update.message.text.split(" ")[1][1:]
-
-        try:
-            is_admin = (
-                CON.execute('''SELECT admin
-                               FROM chat
-                               WHERE admin = %s''',
-                            (user_id,))
-                .fetchone())
-            is_winner = (
-                CON.execute('''SELECT prev_winner
-                               FROM chat
-                               WHERE prev_winner = %(id)s OR
-                                cur_winner = %(id)s''',
-                            {'id': user_id})
-                .fetchone())
-
-            if not is_admin and not is_winner:
-                await update.message.reply_text('You are not allowed to use this command!')
-                return
-            winner_id = (
-                CON.execute(
-                    '''SELECT chat_user.user_id, chat_user.username
-                    FROM chat_user, in_chat
-                    WHERE chat_id = %s
-                        AND chat_user.user_id = in_chat.user_id
-                        AND username = %s''',
-                    (chat_id, username)).fetchone())
-            if not winner_id:
-                await update.message.reply_text('Error getting user!\n' +
-                                                'Perhaps they haven\'t /moro ed? 🤔')
-                return
-
-            if winner_id[0] == user_id and not is_admin:
-                await update.message.reply_text('You are already the winner!')
-                return
-
-            if is_admin:
-                CON.execute('''UPDATE chat
-                                SET prev_winner=cur_winner,
-                                    cur_winner=%s
-                                WHERE chat_id=%s''',
-                            (winner_id[0], chat_id))
-            else:
-                CON.execute('''UPDATE chat
-                                SET prev_winner=%s,
-                                    cur_winner=%s'
-                                WHERE chat_id=%s''',
-                            (user_id, winner_id[0], chat_id))
-        except psycopg.errors.Error as e:
-            print(e)
-            await update.message.reply_text('Error getting user!\n' +
-                                            'Perhaps they haven\' /moro ed? 🤔')
-            return
-    CON.commit()
-    await update.message.reply_text(f'{username} is the new winner!')
-
-
 async def chat_only(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('This command is not usable in private messages!')
 
@@ -230,8 +159,7 @@ def main() -> None:
     app.add_handler(moro_handler)
     app.add_handler(CommandHandler(
         ['kuvaaja', 'graph'], graph, ~Filters.ChatType.PRIVATE))
-    app.add_handler(CommandHandler(
-        ['voittaja', 'winner'], winner, ~Filters.ChatType.PRIVATE))
+    app.add_handler(winner_handler)
 
     # warning about using a command in a private chat
     app.add_handler(CommandHandler(
