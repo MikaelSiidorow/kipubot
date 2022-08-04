@@ -7,6 +7,7 @@ from telegram.ext import (
 import telegram.ext.filters as Filters
 from telegram._files.document import Document as DocumentFile
 from db import get_con
+from constants import STRINGS
 
 CON = get_con()
 
@@ -16,7 +17,7 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     # print('setup_raffle: ' + str(update))
 
     if query.data == 'cancel':
-        await query.message.edit_text('Cancelled! ❌')
+        await query.message.edit_text(STRINGS['cancelled'])
         context.user_data.clear()
         return ConversationHandler.END
 
@@ -26,7 +27,7 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
             not isinstance(query.data[1], str) or
             not isinstance(query.data[2], DocumentFile)):
 
-        await query.message.edit_text('Unknown error, please try again later! ❌')
+        await query.message.edit_text(STRINGS['unknown_error'])
         return ConversationHandler.END
 
     chat_id = query.data[0]
@@ -51,31 +52,28 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     if raffle_data is not None:
         keyboard = [
             [InlineKeyboardButton(
-                '🆕 Create a new raffle!', callback_data='raffle:new_raffle')],
+                STRINGS['new_raffle_button'], callback_data='raffle:new_raffle')],
             [InlineKeyboardButton(
-                '🔄 Update existing raffle!', callback_data='raffle:use_existing')],
+                STRINGS['update_raffle_button'], callback_data='raffle:use_existing')],
             [InlineKeyboardButton(
-                '❌ Cancel!', callback_data='cancel')]
+                STRINGS['cancel_button'],
+                callback_data='cancel')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await query.message.edit_text(f'Selected {chat_title}!\n' +
-                                      'Found existing raffle.\n' +
-                                      'Do you want update it or create a new one?')
+        await query.message.edit_text(STRINGS['update_or_new_raffle'] % {'chat_title': chat_title})
 
         await query.message.edit_reply_markup(reply_markup)
     else:
         keyboard = [
             [InlineKeyboardButton(
-                '🆕 Create a new raffle!', callback_data='raffle:new_raffle')],
+                STRINGS['new_raffle_button'], callback_data='raffle:new_raffle')],
             [InlineKeyboardButton(
-                '❌ Cancel!', callback_data='cancel')],
+                STRINGS['cancel_button'], callback_data='cancel')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await query.message.edit_text(f'Selected {chat_title}! \n' +
-                                      'No existing raffle found. ' +
-                                      'Do you want to create a new one?')
+        await query.message.edit_text(STRINGS['new_raffle_text'] % {'chat_title': chat_title})
 
         await query.message.edit_reply_markup(reply_markup)
 
@@ -88,22 +86,18 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
     chat_title = context.user_data['raffle_chat_title']
 
     if query.data == 'cancel':
-        await query.message.edit_text('Cancelled! ❌')
+        await query.message.edit_text(STRINGS['cancelled'])
         context.user_data.clear()
         return ConversationHandler.END
 
     command = query.data.split(':')[1]
 
     if command == 'use_existing':
-        await query.message.edit_text(f'Updated raffle data in {chat_title}! 🔄')
+        await query.message.edit_text(STRINGS['updated_raffle'] % {'chat_title': chat_title})
         context.user_data.clear()
         return ConversationHandler.END
 
-    await query.message.edit_text('Send the start and end date of the raffle!\n\n' +
-                                  'Format (start and end date on separate lines): \n' +
-                                  'YYYY-MM-DD HH:MM\n' +
-                                  'YYYY-MM-DD HH:MM\n\n' +
-                                  '/cancel to cancel')
+    await query.message.edit_text(STRINGS['raffle_dates_prompt'])
 
     return 'get_date'
 
@@ -111,7 +105,7 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
 async def invalid_date(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
     # print('invalid_date: ' + str(update))
 
-    await update.message.reply_text('Invalid date! ❌')
+    await update.message.reply_text(STRINGS['invalid_date'])
 
     return 'get_date'
 
@@ -125,10 +119,12 @@ async def get_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     context.user_data['raffle_end_date'] = end_date
 
     keyboard = [
-        [InlineKeyboardButton('#️⃣ Set fee', callback_data='fee:continue')],
-        [InlineKeyboardButton('1️⃣ Use default (1€)',
+        [InlineKeyboardButton(STRINGS['set_fee_button'],
+                              callback_data='fee:continue')],
+        [InlineKeyboardButton(STRINGS['default_fee_button'],
                               callback_data='fee:default')],
-        [InlineKeyboardButton('❌ Cancel', callback_data='cancel')]
+        [InlineKeyboardButton(STRINGS['cancel_button'],
+                              callback_data='cancel')]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -144,33 +140,34 @@ async def ask_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[s
     query = update.callback_query
 
     if query.data == 'cancel':
-        await query.message.edit_text('Cancelled! ❌')
+        await query.message.edit_text(STRINGS['cancelled'])
         context.user_data.clear()
         return ConversationHandler.END
 
     if query.data == 'fee:default':
         context.user_data['raffle_entry_fee'] = 100
         keyboard = [
-            [InlineKeyboardButton('✔️ Finish raffle', callback_data='finish')],
-            [InlineKeyboardButton('❌ Cancel', callback_data='cancel')]
+            [InlineKeyboardButton(
+                STRINGS['finish_raffle_button'], callback_data='finish')],
+            [InlineKeyboardButton(STRINGS['cancel_button'],
+                                  callback_data='cancel')]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await query.message.edit_text('Fee set to 1€!', reply_markup=reply_markup)
+        await query.message.edit_text(
+            STRINGS['default_fee_confirmation'],
+            reply_markup=reply_markup)
 
         return 'finish_setup'
 
-    await query.message.edit_text('Send the entry fee to the raffle!\n\n' +
-                                  'Example inputs: \n' +
-                                  '0.50, 1.5, 2\n\n' +
-                                  '/cancel to cancel')
+    await query.message.edit_text(STRINGS['raffle_fee_prompt'])
 
     return 'get_fee'
 
 
 async def invalid_fee(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> str:
-    await update.message.reply_text('Invalid fee! ❌')
+    await update.message.reply_text(STRINGS['invalid_fee'])
 
     # print('invalid_fee: ' + str(update))
 
@@ -184,13 +181,15 @@ async def get_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     context.user_data['raffle_entry_fee'] = int(float(fee) * 100)
 
     keyboard = [
-        [InlineKeyboardButton('✔️ Finish raffle', callback_data='finish')],
-        [InlineKeyboardButton('❌ Cancel', callback_data='cancel')]
+        [InlineKeyboardButton(
+            STRINGS['finish_raffle_button'], callback_data='finish')],
+        [InlineKeyboardButton(STRINGS['cancel_button'],
+                              callback_data='cancel')]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(f'Fee set to {fee}€!', reply_markup=reply_markup)
+    await update.message.reply_text(STRINGS['fee_confirmation'] % (fee), reply_markup=reply_markup)
 
     return 'finish_setup'
 
@@ -200,7 +199,7 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     query = update.callback_query
 
     if query.data == 'cancel':
-        await query.message.edit_text('Cancelled! ❌')
+        await query.message.edit_text(STRINGS['cancelled'])
         context.user_data.clear()
         return ConversationHandler.END
 
@@ -221,21 +220,21 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
                 (chat_id, start_date, end_date, entry_fee))
     CON.commit()
 
-    await query.message.edit_text(f'New raffle setup in {chat_title}! ✔️')
+    await query.message.edit_text(STRINGS['raffle_confirmation'] % {'chat_title': chat_title})
 
     return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data.clear()
-    await update.message.reply_text('Cancelled! ❌')
+    await update.message.reply_text(STRINGS['cancelled'])
     return ConversationHandler.END
 
 
 async def timeout(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     # print('timeout: ' + str(update))
     query = update.callback_query
-    await query.message.edit_text('Timed out! 🕐')
+    await query.message.edit_text(STRINGS['timed_out'])
 
 # YYYY-MM-DD HH:mm regex
 TWO_LINE_DATE_FILTER = Filters.Regex(

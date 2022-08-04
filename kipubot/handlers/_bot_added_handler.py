@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes, ChatMemberHandler
 from telegram.constants import ChatMemberStatus
 import psycopg.errors as PSErrors
 from db import get_con
+from constants import STRINGS
 
 CON = get_con()
 
@@ -45,6 +46,6 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             sticker='CAACAgQAAxkBAAIBPmLicTHP2Xv8IcFzxHYocjLRFBvQAAI5AAMcLHsXd9jLHwYNcSEpBA')
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f'Join the raffles in {title} by typing /moro or /hello!')
+            text=STRINGS['moro_prompt'] % {'chat_title': title})
 
 bot_added_handler = ChatMemberHandler(bot_added, -1)

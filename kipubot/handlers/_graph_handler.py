@@ -5,6 +5,7 @@ import psycopg.errors as PSErrors
 from db import get_con
 from errors import NoEntriesError, NoRaffleError
 from utils import excel_to_graph
+from constants import STRINGS
 
 CON = get_con()
 
@@ -25,15 +26,14 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_photo(photo=f)
 
     except NoRaffleError:
-        await update.message.reply_text(f'No raffle data found in {chat_title}!')
+        await update.message.reply_text(STRINGS['no_raffle'] % {'chat_title': chat_title})
     except NoEntriesError:
-        await update.message.reply_text(f'No raffle entries yet in {chat_title}!')
+        await update.message.reply_text(STRINGS['no_entries'] % {'chat_title': chat_title})
     except PSErrors.Error as e:
         print(e)
-        await update.message.reply_text('Error getting raffle data from database!\n\n' +
-                                        'Perhaps one is not setup yet for this chat? 🤔')
+        await update.message.reply_text(STRINGS['raffle_db_error'])
     except FileNotFoundError:
-        await update.message.reply_text(f'No data found for {chat_title}!')
+        await update.message.reply_text(STRINGS['no_data'] % {'chat_title': chat_title})
 
 graph_handler = CommandHandler(
     ['kuvaaja', 'graph'], graph, ~Filters.ChatType.PRIVATE)

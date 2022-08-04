@@ -4,6 +4,7 @@ from telegram.constants import MessageEntityType
 import telegram.ext.filters as Filters
 import psycopg.errors as PSErrors
 from db import get_con
+from constants import STRINGS
 
 CON = get_con()
 
@@ -18,7 +19,7 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
 
     if len(ent) != 2 or ent[1].type != MessageEntityType.MENTION:
-        await update.message.reply_text('Please use the format /winner @username')
+        await update.message.reply_text(STRINGS['invalid_winner_usage'])
         return
 
     username = update.message.text.split(" ")[1][1:]
@@ -39,7 +40,7 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
             .fetchone())
 
         if not is_admin and not is_winner:
-            await update.message.reply_text('You are not allowed to use this command!')
+            await update.message.reply_text(STRINGS['forbidden_command'])
             return
         winner_id = (
             CON.execute(
@@ -50,12 +51,11 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
                     AND username = %s''',
                 (chat_id, username)).fetchone())
         if not winner_id:
-            await update.message.reply_text('Error getting user!\n' +
-                                            'Perhaps they haven\'t /moro ed? 🤔')
+            await update.message.reply_text(STRINGS['user_not_found'])
             return
 
         if winner_id[0] == user_id and not is_admin:
-            await update.message.reply_text('You are already the winner!')
+            await update.message.reply_text(STRINGS['already_winner'])
             return
 
         if is_admin:
@@ -72,12 +72,11 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
                         (user_id, winner_id[0], chat_id))
     except PSErrors.Error as e:
         print(e)
-        await update.message.reply_text('Error getting user!\n' +
-                                        'Perhaps they haven\' /moro ed? 🤔')
+        await update.message.reply_text(STRINGS['user_not_found'])
         return
 
     CON.commit()
-    await update.message.reply_text(f'{username} is the new winner!')
+    await update.message.reply_text(STRINGS['winner_confirmation'] % {'username': username})
 
 winner_handler = CommandHandler(
     ['voittaja', 'winner'], winner, ~Filters.ChatType.PRIVATE)
