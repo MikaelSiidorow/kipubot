@@ -9,10 +9,13 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
-      - name: Install dependencies
+      - name: Install pipenv
         run: |
           python3 -m pip install --upgrade pip
-          pip install pylint
+          pip install pipenv
+      - name: Install dependencies
+        run: |
+          pipenv install --dev
       - name: Lint with pylint
         run: |
-          python3 lint.py
+          pipenv run lint
