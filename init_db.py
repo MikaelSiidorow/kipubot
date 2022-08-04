@@ -8,7 +8,7 @@ CON = psycopg.connect(DATABASE_URL)
 
 try:
     CON.execute('''CREATE TABLE chat (
-                    chat_id INTEGER PRIMARY KEY,
+                    chat_id BIGINT PRIMARY KEY,
                     title VARCHAR(128),
                     admin INTEGER,
                     prev_winner INTEGER,
@@ -16,18 +16,18 @@ try:
                   )''')
 
     CON.execute('''CREATE TABLE chat_user (
-                    user_id INTEGER PRIMARY KEY,
+                    user_id BIGINT PRIMARY KEY,
                     username VARCHAR(32)
                   )''')
 
     CON.execute('''CREATE TABLE in_chat (
-                    user_id INTEGER REFERENCES chat_user(user_id),
-                    chat_id INTEGER REFERENCES chat(chat_id),
+                    user_id BIGINT REFERENCES chat_user(user_id),
+                    chat_id BIGINT REFERENCES chat(chat_id),
                     PRIMARY KEY (user_id, chat_id)
                   )''')
 
     CON.execute('''CREATE TABLE raffle (
-                    chat_id INTEGER PRIMARY KEY REFERENCES chat(chat_id),
+                    chat_id BIGINT PRIMARY KEY REFERENCES chat(chat_id),
                     start_date TIMESTAMP,
                     end_date TIMESTAMP,
                     entry_fee INTEGER
