@@ -4,6 +4,7 @@ __all__ = (
     "excel_file_handler",
     "bot_added_handler",
     "winner_handler",
+    "graph_handler",
     "raffle_setup_handler",
 )
 
@@ -13,3 +14,4 @@ from ._moro_handler import moro_handler
 from ._excel_file_handler import excel_file_handler
 from ._bot_added_handler import bot_added_handler
 from ._winner_handler import winner_handler
+from ._graph_handler import graph_handler
