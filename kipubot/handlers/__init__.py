@@ -6,6 +6,7 @@ __all__ = (
     "winner_handler",
     "graph_handler",
     "raffle_setup_handler",
+    "no_dm_handler"
 )
 
 from ._raffle_setup_handler import raffle_setup_handler
@@ -15,3 +16,4 @@ from ._excel_file_handler import excel_file_handler
 from ._bot_added_handler import bot_added_handler
 from ._winner_handler import winner_handler
 from ._graph_handler import graph_handler
+from ._no_dm_handler import no_dm_handler

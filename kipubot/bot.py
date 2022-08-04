@@ -4,13 +4,10 @@
 import os
 import logging
 from config import BOT_TOKEN
-from telegram import Update
-from telegram.ext import (ApplicationBuilder, CommandHandler,
-                          ContextTypes, PicklePersistence)
-import telegram.ext.filters as Filters
+from telegram.ext import ApplicationBuilder, PicklePersistence
 from handlers import (start_handler, moro_handler, excel_file_handler,
                       bot_added_handler, winner_handler, graph_handler,
-                      raffle_setup_handler)
+                      raffle_setup_handler, no_dm_handler)
 
 
 # -- SETUP --
@@ -20,11 +17,6 @@ logging.basicConfig(
 )
 
 
-async def chat_only(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text('This command is not usable in private messages!')
-
-
-# -- MAIN --
 def main() -> None:
     if not os.path.exists('data'):
         #logging.info('No existing data...')
@@ -49,9 +41,7 @@ def main() -> None:
     app.add_handler(winner_handler)
 
     # warning about using a command in a private chat
-    app.add_handler(CommandHandler(
-        ['moro', 'hello', 'kuvaaja', 'graph', 'voittaja', 'winner'],
-        chat_only, Filters.ChatType.PRIVATE))
+    app.add_handler(no_dm_handler)
 
     # sending excel file in private chat
     app.add_handler(excel_file_handler)
