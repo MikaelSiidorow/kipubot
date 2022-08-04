@@ -3,21 +3,21 @@
 
 import os
 import logging
-import sqlite3
-import sys
 from typing import Union
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
 import numpy as np
+import psycopg
 from scipy import stats
-from dotenv import load_dotenv
+from config import BOT_TOKEN, DATABASE_URL
+from constants import EXCEL_MIME
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatMemberStatus, MessageEntityType
 from telegram.ext import (ApplicationBuilder, CommandHandler,
                           ContextTypes, MessageHandler, ChatMemberHandler,
                           CallbackQueryHandler, ConversationHandler,
-                          PicklePersistence)
+                          PicklePersistence, InvalidCallbackData)
 from telegram.ext.filters import Document
 import telegram.ext.filters as Filters
 from telegram._files.document import Document as DocumentFile
@@ -29,19 +29,9 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-load_dotenv()
-
-BOT_TOKEN = os.getenv('BOT_TOKEN', default=None)
-EXCEL_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-
-if BOT_TOKEN is None:
-    print('Bot token not found')
-    sys.exit(1)
-
 print('Connecting to DB...')
 
-con = sqlite3.connect('data/.db')
-cur = con.cursor()
+CON = psycopg.connect(DATABASE_URL)
 
 print('Connected!')
 
@@ -62,30 +52,35 @@ async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat.title
 
     try:
-        cur.execute(f'''INSERT OR IGNORE INTO user(user_id, username)
-                        VALUES ({user_id}, '{username}')''')
+        CON.execute('''INSERT INTO chat_user (user_id, username)
+                        VALUES (%s, %s)
+                        ON CONFLICT (user_id)
+                        DO NOTHING''',
+                    (user_id, username))
 
         try:
-            cur.execute(f'''INSERT INTO in_chat(user_id, chat_id)
-                            VALUES ({user_id}, {chat_id})''')
+            CON.execute('''INSERT INTO in_chat(user_id, chat_id)
+                            VALUES (%s, %s)''',
+                        (user_id, chat_id))
             await update.message.reply_text(f'Registered {username} in {chat}!')
-        except sqlite3.IntegrityError:
+        except psycopg.errors.IntegrityError:
             await update.message.reply_text(f'You are already registered in {chat}!')
-    except sqlite3.IntegrityError as e:
+    except psycopg.errors.IntegrityError as e:
         print('SQLite Error: ' + str(e))
 
-    con.commit()
+    CON.commit()
 
 
 async def excel_file(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
     user_id = update.effective_user.id
 
-    query_result = (cur.execute(f'''SELECT c.chat_id, c.title
+    query_result = (CON.execute('''SELECT c.chat_id, c.title
                         FROM chat AS c, in_chat AS i
-                        WHERE i.user_id = {user_id} AND c.chat_id = i.chat_id
-                            AND(c.cur_winner = {user_id} OR
-                                c.prev_winner = {user_id} OR
-                                c.admin = {user_id})''')
+                        WHERE i.user_id = %(id)s AND c.chat_id = i.chat_id
+                            AND(c.cur_winner = %(id)s OR
+                                c.prev_winner = %(id)s OR
+                                c.admin = %(id)s)''',
+                                {'id': user_id})
                     .fetchall())
 
     if len(query_result) == 0:
@@ -120,9 +115,12 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
         context.user_data.clear()
         return ConversationHandler.END
 
-    if (len(query.data) != 3 or not isinstance(query.data[0], int) or
+    if (isinstance(query.data, InvalidCallbackData) or
+            len(query.data) != 3 or
+            not isinstance(query.data[0], int) or
             not isinstance(query.data[1], str) or
             not isinstance(query.data[2], DocumentFile)):
+
         await query.message.edit_text('Unknown error, please try again later! ❌')
         return ConversationHandler.END
 
@@ -139,9 +137,10 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     with open(f'data/{chat_id}/data.xlsx', 'wb') as f:
         await file.download(out=f)
 
-    raffle_data = (cur.execute(f'''SELECT *
+    raffle_data = (CON.execute('''SELECT *
                         FROM raffle
-                        WHERE chat_id = {chat_id}''')
+                        WHERE chat_id = %s''',
+                               (chat_id,))
                    .fetchone())
 
     if raffle_data is not None:
@@ -307,9 +306,15 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     entry_fee = context.user_data['raffle_entry_fee']
     # print(chat_id, start_date, end_date, entry_fee)
 
-    cur.execute(f'''INSERT OR REPLACE INTO raffle(chat_id, start_date, end_date, entry_fee)
-                    VALUES ({chat_id}, "{start_date}", "{end_date}", {entry_fee})''')
-    con.commit()
+    CON.execute('''INSERT INTO raffle (chat_id, start_date, end_date, entry_fee)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (chat_id)
+                    DO UPDATE SET 
+                        start_date = EXCLUDED.start_date,
+                        end_date = EXCLUDED.end_date,
+                        entry_fee = EXCLUDED.entry_fee''',
+                (chat_id, start_date, end_date, entry_fee))
+    CON.commit()
 
     await query.message.edit_text(f'New raffle setup in {chat_title}! ✔️')
 
@@ -339,8 +344,7 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         query_result = (
-            cur.execute(
-                f'SELECT * FROM raffle WHERE chat_id = {chat_id}')
+            CON.execute('SELECT * FROM raffle WHERE chat_id = %s', (chat_id,))
             .fetchone())
 
         if not query_result:
@@ -370,6 +374,10 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
         y = df['amount'].values
         x = df['datenum'].values
+
+        if not df.size > 0:
+            await update.message.reply_text(f'No raffle entries yet in {chat_title}!')
+            return
 
         slope, intercept, _r, _p, sterr = stats.linregress(x, y)
 
@@ -413,7 +421,7 @@ async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         with open(graph_path, 'rb') as f:
             await update.message.reply_photo(photo=f)
 
-    except sqlite3.Error as e:
+    except psycopg.errors.Error as e:
         print(e)
         await update.message.reply_text('Error getting raffle data from database!\n\n' +
                                         'Perhaps one is not setup yet for this chat? 🤔')
@@ -435,21 +443,32 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         username = update.effective_user.username
 
         try:
-            cur.execute(f'''INSERT OR IGNORE INTO chat(chat_id, title, admin)
-                            VALUES ({chat_id}, "{title}", {user_id})''')
-            cur.execute(f'''INSERT OR IGNORE INTO user(user_id, username)
-                            VALUES ({user_id}, '{username}')''')
-            cur.execute(f'''INSERT OR IGNORE INTO in_chat(user_id, chat_id)
-                            VALUES ({user_id}, {chat_id})''')
-            con.commit()
-        except sqlite3.IntegrityError as e:
+            CON.execute('''INSERT INTO chat (chat_id, title, admin)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (chat_id)
+                            DO NOTHING''',
+                        (chat_id, title, user_id))
+            CON.execute('''INSERT INTO chat_user (user_id, username)
+                            VALUES (%s, %s)
+                            ON CONFLICT (user_id)
+                            DO NOTHING''',
+                        (user_id, username))
+            CON.execute('''INSERT INTO in_chat (user_id, chat_id)
+                            VALUES (%s, %s)
+                            ON CONFLICT (user_id, chat_id)
+                            DO NOTHING''',
+                        (user_id, chat_id))
+            CON.commit()
+        except psycopg.errors.IntegrityError as e:
             print('SQLite Error: ' + str(e))
 
         # Kiitos pääsystä! -stigu
         await context.bot.send_sticker(
             chat_id=chat_id,
             sticker='CAACAgQAAxkBAAIBPmLicTHP2Xv8IcFzxHYocjLRFBvQAAI5AAMcLHsXd9jLHwYNcSEpBA')
-        await update.message.reply_text(f'Join the raffles in {title} by typing /moro or /hello!')
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f'Join the raffles in {title} by typing /moro or /hello!')
 
 
 async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -469,27 +488,29 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
         try:
             is_admin = (
-                cur.execute(
-                    f'''SELECT admin
-                        FROM chat
-                        WHERE admin = {user_id}''').fetchone())
+                CON.execute('''SELECT admin
+                               FROM chat
+                               WHERE admin = %s''',
+                            (user_id,))
+                .fetchone())
             is_winner = (
-                cur.execute(
-                    f'''SELECT prev_winner
-                        FROM chat
-                        WHERE prev_winner = {user_id} OR
-                                cur_winner = {user_id}''').fetchone())
+                CON.execute('''SELECT prev_winner
+                               FROM chat
+                               WHERE prev_winner = %(id)s OR
+                                cur_winner = %(id)s''',
+                            {'id': user_id})
+                .fetchone())
 
             if not is_admin and not is_winner:
                 await update.message.reply_text('You are not allowed to use this command!')
                 return
             winner_id = (
-                cur.execute(
-                    '''SELECT user.user_id, user.username
-                    FROM user, in_chat
-                    WHERE chat_id = ?
-                        AND user.user_id = in_chat.user_id
-                        AND username = ?''',
+                CON.execute(
+                    '''SELECT chat_user.user_id, chat_user.username
+                    FROM chat_user, in_chat
+                    WHERE chat_id = %s
+                        AND chat_user.user_id = in_chat.user_id
+                        AND username = %s''',
                     (chat_id, username)).fetchone())
             if not winner_id:
                 await update.message.reply_text('Error getting user!\n' +
@@ -501,20 +522,23 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
                 return
 
             if is_admin:
-                cur.execute(f'''UPDATE chat
+                CON.execute('''UPDATE chat
                                 SET prev_winner=cur_winner,
-                                    cur_winner={winner_id[0]}
-                                WHERE chat_id={chat_id}''')
+                                    cur_winner=%s
+                                WHERE chat_id=%s''',
+                            (winner_id[0], chat_id))
             else:
-                cur.execute(f'''UPDATE chat
-                                SET prev_winner={user_id},
-                                    cur_winner={winner_id[0]}'
-                                WHERE chat_id={chat_id}''')
-        except sqlite3.Error as e:
+                CON.execute('''UPDATE chat
+                                SET prev_winner=%s,
+                                    cur_winner=%s'
+                                WHERE chat_id=%s''',
+                            (user_id, winner_id[0], chat_id))
+        except psycopg.errors.Error as e:
             print(e)
             await update.message.reply_text('Error getting user!\n' +
                                             'Perhaps they haven\' /moro ed? 🤔')
-    con.commit()
+            return
+    CON.commit()
     await update.message.reply_text(f'{username} is the new winner!')
 
 
@@ -528,6 +552,9 @@ async def tester(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # -- MAIN --
 def main() -> None:
+    if not os.path.exists('data'):
+        print('No existing data...')
+        os.mkdir('data')
     persistence = PicklePersistence(filepath='data/.pkl')
     app = (
         ApplicationBuilder()

@@ -4,7 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [scripts]
-setup = "python3 ./setup_db.py"
+init = "python3 ./init_db.py"
+deinit = "python3 ./deinit_db.py"
 start = "python3 kipubot/bot.py"
 dev = "watchgod kipubot.bot.main"
 
@@ -14,6 +15,8 @@ matplotlib = "*"
 scipy = "*"
 python-dotenv = "*"
 python-telegram-bot = ">=20.0a0"
+psycopg = ">=3"
+openpyxl = "*"
 
 [dev-packages]
 watchgod = "*"

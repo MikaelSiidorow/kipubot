@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.8-slim as base
+FROM python:3.8 as base
 
 # Setup ENV variables here (if needed in the future)
 
@@ -15,7 +15,7 @@ COPY Pipfile.lock .
 RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
 
 
-FROM base as setup-database
+FROM base as runtime
 
 # Copy virtual env from python-deps stage
 COPY --from=python-deps /.venv /.venv
@@ -23,13 +23,6 @@ ENV PATH="/.venv/bin:$PATH"
 
 # Setup workdir
 WORKDIR /bot
-
-# Initialize Database
-COPY setup_db.py .
-RUN python3 setup_db.py
-
-
-FROM setup-database as runtime
 
 # Install app into container
 COPY . .
