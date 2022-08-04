@@ -3,7 +3,6 @@
 
 import os
 import logging
-from typing import Union
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
@@ -11,17 +10,15 @@ import numpy as np
 import psycopg
 from scipy import stats
 from config import BOT_TOKEN
-from constants import EXCEL_MIME
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.constants import ChatMemberStatus, MessageEntityType
 from telegram.ext import (ApplicationBuilder, CommandHandler,
-                          ContextTypes, MessageHandler, ChatMemberHandler,
-                          ConversationHandler,
+                          ContextTypes, ChatMemberHandler,
                           PicklePersistence)
-from telegram.ext.filters import Document
 import telegram.ext.filters as Filters
 from db import get_con
-from handlers import (start_handler, moro_handler, raffle_setup_handler)
+from handlers import (start_handler, moro_handler, excel_file_handler,
+                      raffle_setup_handler)
 
 
 # -- SETUP --
@@ -33,41 +30,6 @@ logging.basicConfig(
 CON = get_con()
 
 # -- FUNCTIONS --
-
-
-async def excel_file(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
-    user_id = update.effective_user.id
-
-    query_result = (CON.execute('''SELECT c.chat_id, c.title
-                        FROM chat AS c, in_chat AS i
-                        WHERE i.user_id = %(id)s AND c.chat_id = i.chat_id
-                            AND(c.cur_winner = %(id)s OR
-                                c.prev_winner = %(id)s OR
-                                c.admin = %(id)s)''',
-                                {'id': user_id})
-                    .fetchall())
-
-    if len(query_result) == 0:
-        await update.message.reply_text('You are not the winner in any chat! ❌')
-        return ConversationHandler.END
-
-    doc = update.message.document
-
-    chat_buttons = []
-
-    for chat_id, chat_title in query_result:
-        chat_buttons.append(InlineKeyboardButton(
-            '💬 ' + chat_title, callback_data=[chat_id, chat_title, doc]))
-
-    keyboard = [
-        chat_buttons,
-        [InlineKeyboardButton('❌ Cancel', callback_data='cancel')]
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
-        'Choose channel:', reply_markup=reply_markup)
 
 
 async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -319,8 +281,7 @@ def main() -> None:
         chat_only, Filters.ChatType.PRIVATE))
 
     # sending excel file in private chat
-    app.add_handler(MessageHandler(Document.MimeType(EXCEL_MIME) &
-                                   Filters.ChatType.PRIVATE, excel_file))
+    app.add_handler(excel_file_handler)
 
     # start conversation after selecting channel from excel file
     app.add_handler(raffle_setup_handler)
