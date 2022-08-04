@@ -21,7 +21,7 @@ from telegram.ext import (ApplicationBuilder, CommandHandler,
 from telegram.ext.filters import Document
 import telegram.ext.filters as Filters
 from db import get_con
-from handlers import raffle_setup_handler
+from handlers import start_handler, raffle_setup_handler
 
 
 # -- SETUP --
@@ -33,13 +33,6 @@ logging.basicConfig(
 CON = get_con()
 
 # -- FUNCTIONS --
-
-
-async def start(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    with open('kipubot/resources/info.png', 'rb') as f:
-        await update.message.reply_photo(
-            caption='Use the given commands or send me an Excel-file ' +
-                    'from MobilePay if you\'re the host of a raffle!', photo=f)
 
 
 async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -334,7 +327,7 @@ def main() -> None:
         .build()
     )
 
-    app.add_handler(CommandHandler('start', start))
+    app.add_handler(start_handler)
 
     # added to channel
     app.add_handler(ChatMemberHandler(bot_added, -1))
