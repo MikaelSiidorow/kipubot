@@ -7,7 +7,7 @@ name = "pypi"
 init = "python3 ./init_db.py"
 deinit = "python3 ./deinit_db.py"
 start = "python3 kipubot/bot.py"
-dev = "watchgod kipubot.bot.main"
+dev = "watchfiles 'python3 kipubot/bot.py' kipubot"
 
 [packages]
 pandas = "*"
@@ -19,7 +19,7 @@ psycopg = ">=3"
 openpyxl = "*"
 
 [dev-packages]
-watchgod = "*"
+watchfiles="*"
 autopep8 = "*"
 
 [requires]
