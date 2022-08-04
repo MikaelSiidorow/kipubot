@@ -21,7 +21,7 @@ from telegram.ext import (ApplicationBuilder, CommandHandler,
 from telegram.ext.filters import Document
 import telegram.ext.filters as Filters
 from db import get_con
-from handlers import start_handler, raffle_setup_handler
+from handlers import (start_handler, moro_handler, raffle_setup_handler)
 
 
 # -- SETUP --
@@ -33,32 +33,6 @@ logging.basicConfig(
 CON = get_con()
 
 # -- FUNCTIONS --
-
-
-async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-    username = update.effective_user.username
-    chat = update.effective_chat.title
-
-    try:
-        CON.execute('''INSERT INTO chat_user (user_id, username)
-                        VALUES (%s, %s)
-                        ON CONFLICT (user_id)
-                        DO NOTHING''',
-                    (user_id, username))
-
-        try:
-            CON.execute('''INSERT INTO in_chat(user_id, chat_id)
-                            VALUES (%s, %s)''',
-                        (user_id, chat_id))
-            await update.message.reply_text(f'Registered {username} in {chat}!')
-        except psycopg.errors.IntegrityError:
-            await update.message.reply_text(f'You are already registered in {chat}!')
-    except psycopg.errors.IntegrityError as e:
-        print('SQLite Error: ' + str(e))
-
-    CON.commit()
 
 
 async def excel_file(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
@@ -333,8 +307,7 @@ def main() -> None:
     app.add_handler(ChatMemberHandler(bot_added, -1))
 
     # base commands
-    app.add_handler(CommandHandler(
-        ['moro', 'hello'], hello, ~Filters.ChatType.PRIVATE))
+    app.add_handler(moro_handler)
     app.add_handler(CommandHandler(
         ['kuvaaja', 'graph'], graph, ~Filters.ChatType.PRIVATE))
     app.add_handler(CommandHandler(
