@@ -8,6 +8,7 @@ init = "python3 ./init_db.py"
 deinit = "python3 ./deinit_db.py"
 start = "python3 kipubot/bot.py"
 dev = "watchgod kipubot.bot.main"
+lint = "python3 ./lint.py"
 
 [packages]
 pandas = "*"
@@ -21,6 +22,7 @@ openpyxl = "*"
 [dev-packages]
 watchgod = "*"
 autopep8 = "*"
+pylint = "*"
 
 [requires]
 python_version = "3.8"
