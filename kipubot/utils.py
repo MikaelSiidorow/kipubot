@@ -1,4 +1,5 @@
 from typing import Any
+import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
@@ -37,22 +38,20 @@ def excel_to_graph(excel_path: str,
 
     df = pd.read_excel(excel_path, usecols='A,D', header=None, names=[
         'date', 'amount'], parse_dates=True)
-
     df.drop(df[df['amount'] <= 0].index, inplace=True)
     df.drop(df[df['date'] > end_date].index, inplace=True)
     df.drop(df[df['date'] < start_date].index, inplace=True)
-
+    cur_time_in_fin=pytz.timezone('Europe/Helsinki').localize(pd.Timestamp.now()).replace(tzinfo=None)
+    end= end_date if cur_time_in_fin>end_date else cur_time_in_fin
+    start_and_end_df = pd.DataFrame(
+        [[start_date, 0.00], [end, 0.00]], columns=['date', 'amount'])
+    df = pd.concat([df, start_and_end_df], sort=True)
     if not df.size > 0:
         raise NoEntriesError(f'No raffle entries yet in {chat_title}!')
-
     df['datenum'] = pd.to_numeric(df['date']) // 1_000_000_000
-
+    df = df.sort_values('datenum')
     df.set_index('date', inplace=True)
-
-    df = df.iloc[::-1]
-
     df['amount'] = df['amount'].cumsum()
-
     y = df['amount'].values
     x = df['datenum'].values
 
