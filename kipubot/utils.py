@@ -23,7 +23,7 @@ def remove_emojis(text: str) -> str:
                         u"\U0001F680-\U0001F6FF"  # transport & map symbols
                         u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
                         "]+", flags=re.UNICODE)
-    return emojis.sub(r'', text)
+    return emojis.sub(r' ', text)
 
 
 def calc_pi(x: Any, sterr: Any) -> Any:
