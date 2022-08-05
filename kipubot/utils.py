@@ -1,4 +1,5 @@
 from typing import Any
+import re
 import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -9,6 +10,10 @@ from db import get_con
 from errors import NoEntriesError, NoRaffleError
 
 CON = get_con()
+
+
+def int_price_to_str(num: int) -> str:
+    return re.sub(r'\.0', '', str(num/100.0))
 
 
 def calc_pi(x: Any, sterr: Any) -> Any:
@@ -41,6 +46,7 @@ def excel_to_graph(excel_path: str,
     df.drop(df[df['amount'] <= 0].index, inplace=True)
     df.drop(df[df['date'] > end_date].index, inplace=True)
     df.drop(df[df['date'] < start_date].index, inplace=True)
+    df['amount'] = df['amount'] * 100
 
     helsinki_tz = pytz.timezone('Europe/Helsinki')
     # take current time in helsinki and convert it to naive time,
@@ -56,7 +62,7 @@ def excel_to_graph(excel_path: str,
     df['datenum'] = pd.to_numeric(df['date']) // 1_000_000_000
     df = df.sort_values('datenum')
     df.set_index('date', inplace=True)
-    df['amount'] = df['amount'].cumsum()
+    df['amount'] = df['amount'].cumsum().astype(int)
     y = df['amount'].values
     x = df['datenum'].values
 
@@ -71,19 +77,25 @@ def excel_to_graph(excel_path: str,
 
     _, ax = plt.subplots()
 
+    # plot all data
     df['amount'].plot(ax=ax, style='xr')
     df['y_pred'].plot(ax=ax, color='orange')
     df['min_pred'].plot(ax=ax, style='--b')
     df['max_pred'].plot(ax=ax, style='--b')
 
+    # set limits
+    pred_max_pool = df['y_pred'].iloc[-1]
+    plt.ylim(0, pred_max_pool)
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
-    plt.title(f'''{chat_title} -- Pool {df['amount'].max()}€''')
+
+    # set title and labels
+    plt.title(
+        f'''{chat_title} - Pool {int_price_to_str(df['amount'].max())}€''')
     plt.xlabel('Time')
     plt.ylabel('Pool (€)')
-    # plt.xticks(np.linspace(start_date.toordinal(),
-    #           end_date.toordinal(), days*6+1))
-    # plt.ticklabel_format({},axis='x')
+
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
+    ax.yaxis.set_major_formatter(lambda x, _: int_price_to_str(x))
 
     ax.grid(visible=True, which='minor',
             axis='both', linestyle='--', linewidth=1)
