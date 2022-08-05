@@ -41,8 +41,13 @@ def excel_to_graph(excel_path: str,
     df.drop(df[df['amount'] <= 0].index, inplace=True)
     df.drop(df[df['date'] > end_date].index, inplace=True)
     df.drop(df[df['date'] < start_date].index, inplace=True)
-    cur_time_in_fin=pytz.timezone('Europe/Helsinki').localize(pd.Timestamp.now()).replace(tzinfo=None)
-    end= end_date if cur_time_in_fin>end_date else cur_time_in_fin
+
+    helsinki_tz = pytz.timezone('Europe/Helsinki')
+    # take current time in helsinki and convert it to naive time,
+    # as mobilepay times are naive (naive = no timezone specified).
+    cur_time_hel = pd.Timestamp.utcnow().astimezone(helsinki_tz).replace(tzinfo=None)
+    print(cur_time_hel)
+    end = end_date if cur_time_hel > end_date else cur_time_hel
     start_and_end_df = pd.DataFrame(
         [[start_date, 0.00], [end, 0.00]], columns=['date', 'amount'])
     df = pd.concat([df, start_and_end_df], sort=True)
