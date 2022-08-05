@@ -16,6 +16,16 @@ def int_price_to_str(num: int) -> str:
     return re.sub(r'\.0', '', str(num/100.0))
 
 
+def remove_emojis(text: str) -> str:
+    emojis = re.compile(pattern="["
+                        u"\U0001F600-\U0001F64F"  # emoticons
+                        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                        u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                        "]+", flags=re.UNICODE)
+    return emojis.sub(r'', text)
+
+
 def calc_pi(x: Any, sterr: Any) -> Any:
     n = len(x)
     t = stats.t.ppf(0.975, n-2)
@@ -90,8 +100,8 @@ def excel_to_graph(excel_path: str,
 
     # set title and labels
     plt.title(
-        f'''{chat_title} - Pool {int_price_to_str(df['amount'].max())}€''')
-    plt.xlabel('Time')
+        f'''{remove_emojis(chat_title).strip()} | {int_price_to_str(df['amount'].max())} €''')
+    plt.xlabel(None)
     plt.ylabel('Pool (€)')
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
