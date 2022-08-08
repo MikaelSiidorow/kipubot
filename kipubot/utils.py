@@ -100,7 +100,7 @@ def excel_to_graph(excel_path: str,
     a, b = unc.correlated_values(popt, pcov)
 
     # calculate regression confidence interval
-    px = np.linspace(x[:1], x[-1:], df['amount'].size)
+    px = np.linspace(df['datenum'][:1], df['datenum'][-1:], df['amount'].size)
     py = a*px+b
     nom = unp.nominal_values(py)
     std = unp.std_devs(py)
