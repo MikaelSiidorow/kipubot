@@ -18,6 +18,8 @@ python-dotenv = "*"
 python-telegram-bot = ">=20.0a0"
 psycopg = ">=3"
 openpyxl = "*"
+pytz = "*"
+uncertainties = "*"
 
 [dev-packages]
 watchfiles="*"
