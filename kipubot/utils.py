@@ -62,10 +62,9 @@ def excel_to_graph(excel_path: str,
     # take current time in helsinki and convert it to naive time,
     # as mobilepay times are naive (naive = no timezone specified).
     cur_time_hel = pd.Timestamp.utcnow().astimezone(helsinki_tz).replace(tzinfo=None)
-    print(cur_time_hel)
-    end = end_date if cur_time_hel > end_date else cur_time_hel
+
     start_and_end_df = pd.DataFrame(
-        [[start_date, 0.00], [end, 0.00]], columns=['date', 'amount'])
+        [[start_date, 0.00], [cur_time_hel, 0.00], [end_date, 0.00]], columns=['date', 'amount'])
     df = pd.concat([df, start_and_end_df], sort=True)
     if not df.size > 0:
         raise NoEntriesError(f'No raffle entries yet in {chat_title}!')
@@ -73,14 +72,15 @@ def excel_to_graph(excel_path: str,
     df = df.sort_values('datenum')
     df.set_index('date', inplace=True)
     df['amount'] = df['amount'].cumsum().astype(int)
-    y = df['amount'].values
-    x = df['datenum'].values
+    # ignore the end date in curve fitting
+    y = np.delete(df['amount'].values, -1)
+    x = np.delete(df['datenum'].values, -1)
 
     slope, intercept, _, _, sterr = stats.linregress(x, y)
 
-    df['y_pred'] = slope * x + intercept
+    df['y_pred'] = slope * df['datenum'] + intercept  # plot whole
 
-    pi = calc_pi(x, sterr)
+    pi = calc_pi(df['datenum'].values, sterr)
 
     df['max_pred'] = df['y_pred'] + pi * 1e3
     df['min_pred'] = df['y_pred'] - pi * 1e3
@@ -94,7 +94,7 @@ def excel_to_graph(excel_path: str,
     df['max_pred'].plot(ax=ax, style='--b')
 
     # set limits
-    pred_max_pool = df['y_pred'].iloc[-1]
+    pred_max_pool = slope * end_date.timestamp()+intercept
     plt.ylim(0, pred_max_pool)
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
 
