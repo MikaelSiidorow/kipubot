@@ -4,6 +4,7 @@ from typing import Tuple, Union
 import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.ticker import AutoMinorLocator
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -186,14 +187,11 @@ def generate_graph(out_img_path: str,
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
     ax.yaxis.set_major_formatter(lambda x, _: int_price_to_str(x))
 
-    # set grid (broken currently)
-    # plt.grid(visible=True, which='minor',
-    #         axis='both', linestyle='--', linewidth=1)
-    # plt.tick_params(axis='x', which='both', length=0)
-    # plt.tick_params(axis='y', which='both', length=0)
-    # plt.setxticks(pd.to_datetime(start_date), pd.to_datetime(end_date))
-    # plt.setyticks(np.arange(0, total, 100))
-
+    # set grid
+    ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+    ax.yaxis.set_minor_locator(AutoMinorLocator(2))
+    plt.grid(visible=True, which='major',
+             axis='both', linestyle='--', linewidth=0.5)
     plt.savefig(out_img_path)
     plt.clf()
 
@@ -247,13 +245,10 @@ def generate_expected(out_img_path: str,
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
     ax.yaxis.set_major_formatter(lambda x, _: int_price_to_str(x))
 
-    # set grid (broken currently)
-    # plt.grid(visible=True, which='minor',
-    #         axis='both', linestyle='--', linewidth=1)
-    # plt.tick_params(axis='x', which='both', length=0)
-    # plt.tick_params(axis='y', which='both', length=0)
-    # plt.setxticks(pd.to_datetime(start_date), pd.to_datetime(end_date))
-    # plt.setyticks(np.arange(0, total, 100))
-
+    # set grid
+    ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+    ax.yaxis.set_minor_locator(AutoMinorLocator(2))
+    plt.grid(visible=True, which='major',
+             axis='both', linestyle='--', linewidth=0.5)
     plt.savefig(out_img_path)
     plt.clf()
