@@ -131,6 +131,7 @@ def generate_graph(out_img_path: str,
     df['datenum'] = pd.to_numeric(df.index.values)
     df = df.sort_values('datenum')
     df['amount'] = df['amount'].cumsum().astype(int)
+    df['unique'] = (~df['name'].duplicated()).cumsum() - 1
 
     # -- curve calculations --
     # ignore the end date in curve fitting
@@ -177,8 +178,8 @@ def generate_graph(out_img_path: str,
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
 
     # set title, labels and legend
-    plt.title(
-        f'''{remove_emojis(chat_title).strip()} | Pool {int_price_to_str(df['amount'].max())} €''')
+    plt.title(str(remove_emojis(chat_title).strip()) + "\n" +
+              f"Entries {df['unique'].max()} | Pool {int_price_to_str(df['amount'].max())} €")
     plt.xlabel(None)
     plt.ylabel('Pool (€)')
     ax.legend()
