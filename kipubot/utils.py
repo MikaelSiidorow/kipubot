@@ -160,7 +160,7 @@ def generate_graph(out_img_path: str,
     px = [pd.to_datetime(x, unit='ns') for x in px]
 
     # plot data
-    df['amount'].plot(ax=ax, style='xr', label='Data')
+    df['amount'][:-1].plot(ax=ax, marker='o', style='r', label='Pool')
     # plot regression
     ax.plot(px, nom, '-', color='black', label='y=ax+b')
     # uncertainty lines (95% conf)
@@ -177,7 +177,7 @@ def generate_graph(out_img_path: str,
 
     # set title, labels and legend
     plt.title(
-        f'''{remove_emojis(chat_title).strip()} | {int_price_to_str(df['amount'].max())} €''')
+        f'''{remove_emojis(chat_title).strip()} | Pool {int_price_to_str(df['amount'].max())} €''')
     plt.xlabel(None)
     plt.ylabel('Pool (€)')
     ax.legend()
@@ -195,3 +195,65 @@ def generate_graph(out_img_path: str,
     # plt.setyticks(np.arange(0, total, 100))
 
     plt.savefig(out_img_path)
+    plt.clf()
+
+
+def generate_expected(out_img_path: str,
+                      chat_id: str,
+                      chat_title: str) -> None:
+    query_result = get_raffle(chat_id, include_df=True)
+
+    if not os.path.exists(os.path.dirname(out_img_path)):
+        os.makedirs(os.path.dirname(out_img_path))
+
+    if not query_result:
+        raise NoRaffleError(f'No raffle data found in {chat_title}!')
+
+    start_date, _, entry_fee, df = query_result
+
+    helsinki_tz = pytz.timezone('Europe/Helsinki')
+    cur_time_hel = pd.Timestamp.utcnow().astimezone(helsinki_tz).replace(tzinfo=None)
+
+    df.at[start_date, 'amount'] = 0
+    # parse dataframe a bit to make it easier to plot
+    df['datenum'] = pd.to_numeric(df.index.values)
+    df = df.sort_values('datenum')
+    df['amount'] = df['amount'].cumsum().astype(int)
+    df['unique'] = (~df['name'].duplicated()).cumsum() - 1
+    df['win_odds'] = 1.0 / df['unique']
+    df['next_expected'] = - entry_fee * \
+        (1 - df['win_odds']) + (df['amount']) * df['win_odds']
+
+    # -- plot --
+    ax = plt.axes()
+
+    # plot data
+    df['next_expected'].plot(
+        ax=ax, marker='o', style='r', label='Expected Value')
+
+    # set limits
+    plt.ylim(0, )
+    plt.xlim((pd.to_datetime(start_date), pd.to_datetime(cur_time_hel)))
+
+    # set title, labels and legend
+    plt.title(str(remove_emojis(chat_title).strip()) +
+              f' | Fee {int_price_to_str(entry_fee)} €\n' +
+              f"Expected Value { (df['next_expected'].iloc[-1]/100):.2f} €")
+    plt.xlabel(None)
+    plt.ylabel('Expected Value (€)')
+    ax.legend()
+
+    # format axis
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
+    ax.yaxis.set_major_formatter(lambda x, _: int_price_to_str(x))
+
+    # set grid (broken currently)
+    # plt.grid(visible=True, which='minor',
+    #         axis='both', linestyle='--', linewidth=1)
+    # plt.tick_params(axis='x', which='both', length=0)
+    # plt.tick_params(axis='y', which='both', length=0)
+    # plt.setxticks(pd.to_datetime(start_date), pd.to_datetime(end_date))
+    # plt.setyticks(np.arange(0, total, 100))
+
+    plt.savefig(out_img_path)
+    plt.clf()
