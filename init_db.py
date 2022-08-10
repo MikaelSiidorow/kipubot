@@ -30,7 +30,10 @@ try:
                     chat_id BIGINT PRIMARY KEY REFERENCES chat(chat_id),
                     start_date TIMESTAMP,
                     end_date TIMESTAMP,
-                    entry_fee INTEGER
+                    entry_fee INTEGER,
+                    dates TIMESTAMP[],
+                    entries VARCHAR(128)[],
+                    amounts INTEGER[]
                   )''')
 except psycopg.errors.DuplicateTable as e:
     print('Tables already setup!')

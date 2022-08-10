@@ -6,16 +6,12 @@ from telegram.ext import (
     CallbackQueryHandler, CommandHandler, InvalidCallbackData)
 import telegram.ext.filters as Filters
 from telegram._files.document import Document as DocumentFile
-from db import get_con
 from constants import STRINGS
-
-CON = get_con()
+from utils import get_raffle, save_raffle, read_excel_to_df
 
 
 async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
     query = update.callback_query
-    # print('setup_raffle: ' + str(update))
-
     if query.data == 'cancel':
         await query.message.edit_text(STRINGS['cancelled'])
         context.user_data.clear()
@@ -43,11 +39,7 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     with open(f'data/{chat_id}/data.xlsx', 'wb') as f:
         await file.download(out=f)
 
-    raffle_data = (CON.execute('''SELECT *
-                        FROM raffle
-                        WHERE chat_id = %s''',
-                               (chat_id,))
-                   .fetchone())
+    raffle_data = get_raffle(chat_id)
 
     if raffle_data is not None:
         keyboard = [
@@ -82,7 +74,6 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
 
 async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
     query = update.callback_query
-    # print('ask_date: ' + str(update))
     chat_title = context.user_data['raffle_chat_title']
 
     if query.data == 'cancel':
@@ -93,6 +84,13 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
     command = query.data.split(':')[1]
 
     if command == 'use_existing':
+        chat_id = context.user_data['raffle_chat_id']
+
+        start_date, end_date, entry_fee, _ = get_raffle(chat_id)
+        excel_path = f'data/{chat_id}/data.xlsx'
+        df = read_excel_to_df(excel_path, start_date, end_date)
+        save_raffle(chat_id, start_date, end_date, entry_fee, df)
+
         await query.message.edit_text(STRINGS['updated_raffle'] % {'chat_title': chat_title})
         context.user_data.clear()
         return ConversationHandler.END
@@ -103,16 +101,12 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
 
 
 async def invalid_date(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
-    # print('invalid_date: ' + str(update))
-
     await update.message.reply_text(STRINGS['invalid_date'])
 
     return 'get_date'
 
 
 async def get_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    # print('get_date: ' + str(update))
-
     start_date, end_date = update.message.text.split("\n")
 
     context.user_data['raffle_start_date'] = start_date
@@ -136,7 +130,6 @@ async def get_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
 
 async def ask_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
-    # print('ask_fee: ' + str(update))
     query = update.callback_query
 
     if query.data == 'cancel':
@@ -169,14 +162,10 @@ async def ask_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[s
 async def invalid_fee(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> str:
     await update.message.reply_text(STRINGS['invalid_fee'])
 
-    # print('invalid_fee: ' + str(update))
-
     return 'get_fee'
 
 
 async def get_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    # print('get_fee: ' + str(update))
-
     fee = update.message.text
     context.user_data['raffle_entry_fee'] = int(float(fee) * 100)
 
@@ -195,7 +184,6 @@ async def get_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
 
 async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
-    # print('finish_setup: ' + str(update))
     query = update.callback_query
 
     if query.data == 'cancel':
@@ -208,17 +196,10 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     start_date = context.user_data['raffle_start_date'] + ':00'
     end_date = context.user_data['raffle_end_date'] + ':00'
     entry_fee = context.user_data['raffle_entry_fee']
-    # print(chat_id, start_date, end_date, entry_fee)
 
-    CON.execute('''INSERT INTO raffle (chat_id, start_date, end_date, entry_fee)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (chat_id)
-                    DO UPDATE SET 
-                        start_date = EXCLUDED.start_date,
-                        end_date = EXCLUDED.end_date,
-                        entry_fee = EXCLUDED.entry_fee''',
-                (chat_id, start_date, end_date, entry_fee))
-    CON.commit()
+    excel_path = f'data/{chat_id}/data.xlsx'
+    df = read_excel_to_df(excel_path, start_date, end_date)
+    save_raffle(chat_id, start_date, end_date, entry_fee, df)
 
     await query.message.edit_text(STRINGS['raffle_confirmation'] % {'chat_title': chat_title})
 
@@ -232,7 +213,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def timeout(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    # print('timeout: ' + str(update))
     query = update.callback_query
     await query.message.edit_text(STRINGS['timed_out'])
 

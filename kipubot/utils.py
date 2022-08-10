@@ -1,4 +1,6 @@
+import os
 import re
+from typing import Tuple, Union
 import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -9,7 +11,7 @@ from scipy.optimize import curve_fit
 import uncertainties as unc
 import uncertainties.unumpy as unp
 from db import get_con
-from errors import NoEntriesError, NoRaffleError
+from errors import NoRaffleError
 
 CON = get_con()
 
@@ -45,45 +47,88 @@ def remove_emojis(text: str) -> str:
     return emojis.sub(r' ', text)
 
 
-def excel_to_graph(excel_path: str,
-                   out_img_path: str,
-                   chat_id: str,
-                   chat_title: str) -> None:
-    query_result = (
-        CON.execute('SELECT * FROM raffle WHERE chat_id = %s', (chat_id,))
-        .fetchone())
-
-    if not query_result:
-        raise NoRaffleError(f'No raffle data found in {chat_title}!')
-
-    _, start_date, end_date, _ = query_result
-
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-    # days = (end_date - start_date).days
-
-    df = pd.read_excel(excel_path, usecols='A,D', header=None, names=[
-        'date', 'amount'], parse_dates=True)
+def read_excel_to_df(excel_path: str,
+                     start_date: pd.Timestamp,
+                     end_date: pd.Timestamp) -> pd.DataFrame:
+    df = pd.read_excel(excel_path, usecols='A,B,D', header=None, names=[
+        'date', 'name', 'amount'], parse_dates=True)
     df.drop(df[df['amount'] <= 0].index, inplace=True)
     df.drop(df[df['date'] > end_date].index, inplace=True)
     df.drop(df[df['date'] < start_date].index, inplace=True)
     df['amount'] = df['amount'] * 100
+    return df
 
-    helsinki_tz = pytz.timezone('Europe/Helsinki')
+
+def get_raffle(chat_id: int, include_df: bool = False) -> Tuple[
+        pd.Timestamp, pd.Timestamp, int, Union[pd.DataFrame, None]]:
+
+    query_result = CON.execute(
+        'SELECT * FROM raffle WHERE chat_id = %s', [chat_id]).fetchone()
+
+    if query_result is None:
+        return None
+
+    _, start_date, end_date, entry_fee, dates, entries, amounts = query_result
+
+    if include_df:
+        df = pd.DataFrame(
+            data={'date': dates, 'name': entries, 'amount': amounts})
+        df.set_index('date', inplace=True)
+        return (start_date, end_date, entry_fee, df)
+
+    return (start_date, end_date, entry_fee, None)
+
+
+def save_raffle(chat_id: int,
+                start_date: pd.Timestamp,
+                end_date: pd.Timestamp,
+                entry_fee: int,
+                df: pd.DataFrame) -> None:
+
+    dates = df['date'].tolist()
+    entries = df['name'].tolist()
+    amounts = df['amount'].tolist()
+
+    CON.execute('''INSERT INTO raffle
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (chat_id)
+                    DO UPDATE SET 
+                        start_date = EXCLUDED.start_date,
+                        end_date = EXCLUDED.end_date,
+                        entry_fee = EXCLUDED.entry_fee,
+                        dates = EXCLUDED.dates,
+                        entries = EXCLUDED.entries,
+                        amounts = EXCLUDED.amounts''',
+                (chat_id, start_date, end_date, entry_fee, dates, entries, amounts))
+
+    CON.commit()
+
+
+def generate_graph(out_img_path: str,
+                   chat_id: str,
+                   chat_title: str) -> None:
+    query_result = get_raffle(chat_id, include_df=True)
+
+    if not os.path.exists(os.path.dirname(out_img_path)):
+        os.makedirs(os.path.dirname(out_img_path))
+
+    if not query_result:
+        raise NoRaffleError(f'No raffle data found in {chat_title}!')
+
+    start_date, end_date, _, df = query_result
+
     # take current time in helsinki and convert it to naive time,
     # as mobilepay times are naive (naive = no timezone specified).
+    helsinki_tz = pytz.timezone('Europe/Helsinki')
     cur_time_hel = pd.Timestamp.utcnow().astimezone(helsinki_tz).replace(tzinfo=None)
 
-    start_and_end_df = pd.DataFrame(
-        [[start_date, 0.00], [cur_time_hel, 0.00], [end_date, 0.00]], columns=['date', 'amount'])
-    df = pd.concat([df, start_and_end_df], sort=True)
-    if not df.size > 0:
-        raise NoEntriesError(f'No raffle entries yet in {chat_title}!')
+    df.at[start_date, 'amount'] = 0
+    df.at[cur_time_hel, 'amount'] = 0
+    df.at[end_date, 'amount'] = 0
 
     # parse dataframe a bit to make it easier to plot
-    df['datenum'] = pd.to_numeric(df['date'])
+    df['datenum'] = pd.to_numeric(df.index.values)
     df = df.sort_values('datenum')
-    df.set_index('date', inplace=True)
     df['amount'] = df['amount'].cumsum().astype(int)
 
     # -- curve calculations --
@@ -108,7 +153,7 @@ def excel_to_graph(excel_path: str,
     lpb, upb = preband(px, x, y, popt, f)
 
     # -- plot --
-    _, ax = plt.subplots()
+    ax = plt.axes()
 
     # convert back to dates
     x = [pd.to_datetime(x, unit='ns') for x in x]
