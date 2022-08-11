@@ -55,12 +55,20 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text(STRINGS['already_winner'])
             return
 
+        # admin: moves current to prev and makes new current
         if is_admin:
             CON.execute('''UPDATE chat
                             SET prev_winners = array_append(prev_winners, cur_winner),
                                 cur_winner=%s
                             WHERE chat_id=%s''',
                         (winner_id, chat_id))
+        # prev_winner: replaces current winner directly (assumed typo)
+        elif is_prev_winner:
+            CON.execute('''UPDATE chat
+                            SET cur_winner=%s
+                            WHERE chat_id=%s''',
+                        (winner_id, chat_id))
+        # winner: moves themselves to prev and makes new current
         else:
             CON.execute('''UPDATE chat
                             SET prev_winners=array_append(prev_winners, %s),
