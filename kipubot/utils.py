@@ -149,7 +149,7 @@ def save_raffle(chat_id: int,
 
 def save_user_or_ignore(user_id: int, username: str) -> None:
     try:
-        CON.execute('''INSERT INTO users
+        CON.execute('''INSERT INTO chat_user
                     VALUES (%s, %s)
                     ON CONFLICT (user_id)
                     DO NOTHING''',
