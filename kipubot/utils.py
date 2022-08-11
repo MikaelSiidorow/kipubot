@@ -175,9 +175,14 @@ def parse_df_essentials(raffle_data: RaffleData) -> RaffleData:
 
 
 def parse_expected(raffle_data: RaffleData) -> RaffleData:
-    start_date, end_date, fee, df = parse_df_essentials(raffle_data)
+    start_date, end_date, entry_fee, df = parse_df_essentials(raffle_data)
 
-    return RaffleData(start_date, end_date, fee, df)
+    df['win_odds'] = 1.0 / df['unique']
+    df['next_expected'] = ((- entry_fee * (1 - df['win_odds'])
+                           + (df['amount'] - entry_fee) * df['win_odds'])
+                           ).fillna(0).round().astype(int)
+
+    return RaffleData(start_date, end_date, entry_fee, df)
 
 
 def parse_graph(raffle_data: RaffleData) -> RaffleData:
@@ -266,11 +271,6 @@ def generate_expected(out_img_path: str,
         raise NoRaffleError(f'No raffle data found in {chat_title}!')
 
     start_date, _, entry_fee, df = parse_expected(raffle_data)
-
-    df['win_odds'] = 1.0 / df['unique']
-    df['next_expected'] = ((- entry_fee * (1 - df['win_odds'])
-                           + (df['amount'] - entry_fee) * df['win_odds'])
-                           ).fillna(0).round().astype(int)
 
     # -- plot --
     ax = plt.axes()
