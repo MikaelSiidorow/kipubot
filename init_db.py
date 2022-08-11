@@ -10,14 +10,13 @@ try:
     CON.execute('''CREATE TABLE chat (
                     chat_id BIGINT PRIMARY KEY,
                     title VARCHAR(128),
-                    admin INTEGER,
-                    prev_winner INTEGER,
-                    cur_winner INTEGER
+                    admins BIGINT[],
+                    prev_winners BIGINT[],
+                    cur_winner BIGINT
                   )''')
 
     CON.execute('''CREATE TABLE chat_user (
-                    user_id BIGINT PRIMARY KEY,
-                    username VARCHAR(32)
+                    user_id BIGINT PRIMARY KEY
                   )''')
 
     CON.execute('''CREATE TABLE in_chat (

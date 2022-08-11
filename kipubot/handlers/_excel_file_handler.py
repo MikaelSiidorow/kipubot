@@ -15,8 +15,8 @@ async def excel_file(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Uni
                         FROM chat AS c, in_chat AS i
                         WHERE i.user_id = %(id)s AND c.chat_id = i.chat_id
                             AND(c.cur_winner = %(id)s OR
-                                c.prev_winner = %(id)s OR
-                                c.admin = %(id)s)''',
+                                %(id)s = ANY(c.prev_winners) OR
+                                %(id)s = ANY(c.admins))''',
                                 {'id': user_id})
                     .fetchall())
 

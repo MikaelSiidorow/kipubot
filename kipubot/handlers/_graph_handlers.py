@@ -1,18 +1,38 @@
+from enum import Enum
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler, ConversationHandler
-from telegram.ext import filters as Filters
+import telegram.ext.filters as Filters
 import psycopg.errors as PSErrors
 from errors import NoEntriesError, NoRaffleError
-from utils import generate_graph
+from utils import generate_graph, generate_expected
 from db import get_con
 from constants import STRINGS
 
 CON = get_con()
 
+class GraphType(Enum):
+    EXPECTED = 'expected'
+    GRAPH = 'graph'
 
-async def graph_helper(update: Update, graph_path, chat_id, chat_title) -> None:
+
+def get_graph_img(graph_type: GraphType) -> str:
+    if graph_type == GraphType.EXPECTED:
+        return 'expected.png'
+
+    return 'graph.png'
+
+
+async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE,
+                graph_type: GraphType = 'graph') -> None:
+    chat_id = update.effective_chat.id
+    chat_title = update.effective_chat.title
+    graph_path = f'data/{chat_id}/{get_graph_img(graph_type)}'
+
     try:
-        generate_graph(graph_path, chat_id, chat_title)
+        if graph_type == GraphType.EXPECTED:
+            generate_expected(graph_path, chat_id, chat_title)
+        else:
+            generate_graph(graph_path, chat_id, chat_title)
 
         with open(graph_path, 'rb') as f:
             await update.message.reply_photo(photo=f)
@@ -26,15 +46,13 @@ async def graph_helper(update: Update, graph_path, chat_id, chat_title) -> None:
     except FileNotFoundError:
         await update.message.reply_text(STRINGS['no_data'] % {'chat_title': chat_title})
 
-
-async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
-    chat_title = update.effective_chat.title
-    graph_path = f'data/{chat_id}/graph.png'
-    await graph_helper(update, graph_path, chat_id, chat_title)
-
 graph_handler = CommandHandler(
     ['kuvaaja', 'graph'], graph, ~Filters.ChatType.PRIVATE)
+
+expected_value_handler = CommandHandler(
+    ['odotusarvo', 'expected'],
+    lambda u, c: graph(u, c, graph_type=GraphType.EXPECTED),
+    ~Filters.ChatType.PRIVATE)
 
 
 async def graph_dm(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
