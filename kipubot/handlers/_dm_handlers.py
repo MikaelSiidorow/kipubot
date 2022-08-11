@@ -12,10 +12,10 @@ CON = get_con()
 async def ask_chat(update: Update, _context: ContextTypes.DEFAULT_TYPE,
                    graph_type: GraphType = None) -> None:
     query_result = CON.execute(
-        f'SELECT R.chat_id,chat.title FROM in_chat AS C \
+        'SELECT R.chat_id,chat.title FROM in_chat AS C \
             JOIN raffle as R ON C.chat_id=R.chat_id JOIN\
             chat ON chat.chat_id=R.chat_id\
-            WHERE C.user_id={update.effective_user.id}').fetchall()
+            WHERE C.user_id=%s', (update.effective_user.id,)).fetchall()
     print(query_result)
     chat_buttons = []
     for chat_id, chat_title in query_result:
