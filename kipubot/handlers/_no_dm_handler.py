@@ -10,3 +10,7 @@ async def chat_only(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None
 no_dm_handler = CommandHandler(
     ['moro', 'hello', 'kuvaaja', 'graph', 'voittaja', 'winner'],
     chat_only, Filters.ChatType.PRIVATE)
+
+test = CommandHandler(
+    ['moro', 'hello', 'kuvaaja', 'graph', 'voittaja', 'winner'],
+    chat_only, Filters.ChatType.PRIVATE)
