@@ -1,3 +1,4 @@
+import os
 from typing import Union
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -85,7 +86,10 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
         await context.bot.send_message(chat_id,
                                        STRINGS['raffle_updated_chat']
                                        % {'username': update.effective_user.username})
+        # perform cleanup
         context.user_data.clear()
+        os.remove(excel_path)
+
         return ConversationHandler.END
 
     await query.message.edit_text(STRINGS['raffle_dates_prompt'])
@@ -198,6 +202,10 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     await query.message.edit_text(STRINGS['raffle_confirmation'] % {'chat_title': chat_title})
     await context.bot.send_message(chat_id, STRINGS['raffle_created_chat']
                                    % {'username': update.effective_user.username})
+
+    # perform cleanup
+    context.user_data.clear()
+    os.remove(excel_path)
 
     return ConversationHandler.END
 

@@ -33,6 +33,7 @@ async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Unio
 
     if not validate_excel(excel_path):
         await update.message.reply_text(STRINGS['invalid_file'])
+        os.remove(excel_path)
         return
 
     chat_buttons = []
