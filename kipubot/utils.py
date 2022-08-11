@@ -1,6 +1,7 @@
 import os
 import re
-from typing import Tuple, Union
+from typing import NamedTuple, Union
+import psycopg.errors as PSErrors
 import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -15,6 +16,13 @@ from db import get_con
 from errors import NoRaffleError
 
 CON = get_con()
+
+
+class RaffleData(NamedTuple):
+    start_date: pd.Timestamp
+    end_date: pd.Timestamp
+    entry_fee: int
+    df: Union[None, pd.DataFrame]
 
 
 def int_price_to_str(num: int) -> str:
@@ -36,6 +44,33 @@ def preband(x, xd, yd, p, func):
     # upper & lower
     lpb, upb = yp - dy, yp + dy
     return lpb, upb
+
+
+def fit_timedata(x_series: pd.Series, y_series: pd.Series):
+    # ignore the end date in curve fitting
+    x = x_series.values[:-1]
+    y = y_series.values[:-1]
+
+    def f(x, slope, intercept):
+        return slope * x + intercept
+
+    # pylint: disable=unbalanced-tuple-unpacking
+    popt, pcov = curve_fit(f, x, y)
+
+    a, b = unc.correlated_values(popt, pcov)
+
+    # calculate regression confidence interval
+    px = np.linspace(x_series[:1], x_series[-1:], y_series.size)
+    py = a*px+b
+    nom = unp.nominal_values(py)
+    std = unp.std_devs(py)
+
+    lpb, upb = preband(px, x, y, popt, f)
+
+    # convert back to dates
+    px = [pd.to_datetime(x, unit='ns') for x in px]
+
+    return (px, nom, std, lpb, upb)
 
 
 def remove_emojis(text: str) -> str:
@@ -60,9 +95,7 @@ def read_excel_to_df(excel_path: str,
     return df
 
 
-def get_raffle(chat_id: int, include_df: bool = False) -> Tuple[
-        pd.Timestamp, pd.Timestamp, int, Union[pd.DataFrame, None]]:
-
+def get_raffle(chat_id: int, include_df: bool = False) -> RaffleData:
     query_result = CON.execute(
         'SELECT * FROM raffle WHERE chat_id = %s', [chat_id]).fetchone()
 
@@ -75,9 +108,18 @@ def get_raffle(chat_id: int, include_df: bool = False) -> Tuple[
         df = pd.DataFrame(
             data={'date': dates, 'name': entries, 'amount': amounts})
         df.set_index('date', inplace=True)
-        return (start_date, end_date, entry_fee, df)
+        return RaffleData(start_date, end_date, entry_fee, df)
 
-    return (start_date, end_date, entry_fee, None)
+    return RaffleData(start_date, end_date, entry_fee, None)
+
+
+def get_cur_time_hel() -> pd.Timestamp:
+    # take current time in helsinki and convert it to naive time,
+    # as mobilepay times are naive (naive = no timezone specified).
+    helsinki_tz = pytz.timezone('Europe/Helsinki')
+    cur_time_hel = pd.Timestamp.utcnow().astimezone(helsinki_tz).replace(tzinfo=None)
+
+    return cur_time_hel
 
 
 def save_raffle(chat_id: int,
@@ -105,61 +147,92 @@ def save_raffle(chat_id: int,
     CON.commit()
 
 
-def generate_graph(out_img_path: str,
-                   chat_id: str,
-                   chat_title: str) -> None:
-    query_result = get_raffle(chat_id, include_df=True)
+def save_user_or_ignore(user_id: int, username: str) -> None:
+    try:
+        CON.execute('''INSERT INTO chat_user
+                    VALUES (%s, %s)
+                    ON CONFLICT (user_id)
+                    DO NOTHING''',
+                    (user_id, username))
+    except PSErrors.IntegrityError as e:
+        print('SQLite Error: ' + str(e))
+        CON.rollback()
+    else:
+        CON.commit()
 
-    if not os.path.exists(os.path.dirname(out_img_path)):
-        os.makedirs(os.path.dirname(out_img_path))
 
-    if not query_result:
-        raise NoRaffleError(f'No raffle data found in {chat_title}!')
-
-    start_date, end_date, _, df = query_result
-
-    # take current time in helsinki and convert it to naive time,
-    # as mobilepay times are naive (naive = no timezone specified).
-    helsinki_tz = pytz.timezone('Europe/Helsinki')
-    cur_time_hel = pd.Timestamp.utcnow().astimezone(helsinki_tz).replace(tzinfo=None)
+def parse_df_essentials(raffle_data: RaffleData) -> RaffleData:
+    start_date, end_date, fee, df = raffle_data
 
     df.at[start_date, 'amount'] = 0
-    df.at[cur_time_hel, 'amount'] = 0
-    df.at[end_date, 'amount'] = 0
 
-    # parse dataframe a bit to make it easier to plot
     df['datenum'] = pd.to_numeric(df.index.values)
     df = df.sort_values('datenum')
     df['amount'] = df['amount'].cumsum().astype(int)
     df['unique'] = (~df['name'].duplicated()).cumsum() - 1
 
-    # -- curve calculations --
-    # ignore the end date in curve fitting
-    x = np.delete(df['datenum'].values, -1)
-    y = np.delete(df['amount'].values, -1)
+    return RaffleData(start_date, end_date, fee, df)
 
-    def f(x, slope, intercept):
-        return slope * x + intercept
 
-    # pylint: disable=unbalanced-tuple-unpacking
-    popt, pcov = curve_fit(f, x, y)
+def parse_expected(raffle_data: RaffleData) -> RaffleData:
+    start_date, end_date, entry_fee, df = parse_df_essentials(raffle_data)
 
-    a, b = unc.correlated_values(popt, pcov)
+    df['win_odds'] = 1.0 / df['unique']
+    df['next_expected'] = ((- entry_fee * (1 - df['win_odds'])
+                           + (df['amount'] - entry_fee) * df['win_odds'])
+                           ).fillna(0).round().astype(int)
 
-    # calculate regression confidence interval
-    px = np.linspace(df['datenum'][:1], df['datenum'][-1:], df['amount'].size)
-    py = a*px+b
-    nom = unp.nominal_values(py)
-    std = unp.std_devs(py)
+    return RaffleData(start_date, end_date, entry_fee, df)
 
-    lpb, upb = preband(px, x, y, popt, f)
+
+def parse_graph(raffle_data: RaffleData) -> RaffleData:
+    df = raffle_data.df
+
+    df.at[get_cur_time_hel(), 'amount'] = 0
+    df.at[raffle_data.end_date, 'amount'] = 0
+
+    parsed_raffle_data = parse_df_essentials(
+        raffle_data._replace(df=df))
+
+    return parsed_raffle_data
+
+
+def configure_and_save_plot(out_img_path: str) -> None:
+    ax = plt.gca()
+
+    # toggle legend
+    ax.legend()
+
+    # format axis
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
+    ax.yaxis.set_major_formatter(lambda x, _: int_price_to_str(x))
+
+    # set grid
+    ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+    ax.yaxis.set_minor_locator(AutoMinorLocator(2))
+    plt.grid(visible=True, which='major',
+             axis='both', linestyle='--', linewidth=0.5)
+    plt.savefig(out_img_path)
+    plt.clf()
+
+
+def generate_graph(out_img_path: str,
+                   chat_id: str,
+                   chat_title: str) -> None:
+    raffle_data = get_raffle(chat_id, include_df=True)
+
+    if not os.path.exists(os.path.dirname(out_img_path)):
+        os.makedirs(os.path.dirname(out_img_path))
+
+    if not raffle_data:
+        raise NoRaffleError(f'No raffle data found in {chat_title}!')
+
+    # -- parse and fit data --
+    start_date, end_date, _, df = parse_graph(raffle_data)
+    px, nom, std, lpb, upb = fit_timedata(df['datenum'], df['amount'])
 
     # -- plot --
     ax = plt.axes()
-
-    # convert back to dates
-    x = [pd.to_datetime(x, unit='ns') for x in x]
-    px = [pd.to_datetime(x, unit='ns') for x in px]
 
     # plot data
     df['amount'][:-1].plot(ax=ax, marker='o', style='r', label='Pool')
@@ -177,52 +250,27 @@ def generate_graph(out_img_path: str,
     plt.ylim(0, pred_max_pool)
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
 
-    # set title, labels and legend
+    # set title and labels
     plt.title(str(remove_emojis(chat_title).strip()) + "\n" +
               f"Entries {df['unique'].max()} | Pool {int_price_to_str(df['amount'].max())} €")
     plt.xlabel(None)
     plt.ylabel('Pool (€)')
-    ax.legend()
 
-    # format axis
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
-    ax.yaxis.set_major_formatter(lambda x, _: int_price_to_str(x))
-
-    # set grid
-    ax.xaxis.set_minor_locator(AutoMinorLocator(2))
-    ax.yaxis.set_minor_locator(AutoMinorLocator(2))
-    plt.grid(visible=True, which='major',
-             axis='both', linestyle='--', linewidth=0.5)
-    plt.savefig(out_img_path)
-    plt.clf()
+    configure_and_save_plot(out_img_path)
 
 
 def generate_expected(out_img_path: str,
                       chat_id: str,
                       chat_title: str) -> None:
-    query_result = get_raffle(chat_id, include_df=True)
+    raffle_data = get_raffle(chat_id, include_df=True)
 
     if not os.path.exists(os.path.dirname(out_img_path)):
         os.makedirs(os.path.dirname(out_img_path))
 
-    if not query_result:
+    if not raffle_data:
         raise NoRaffleError(f'No raffle data found in {chat_title}!')
 
-    start_date, _, entry_fee, df = query_result
-
-    helsinki_tz = pytz.timezone('Europe/Helsinki')
-    cur_time_hel = pd.Timestamp.utcnow().astimezone(helsinki_tz).replace(tzinfo=None)
-
-    df.at[start_date, 'amount'] = 0
-    # parse dataframe a bit to make it easier to plot
-    df['datenum'] = pd.to_numeric(df.index.values)
-    df = df.sort_values('datenum')
-    df['amount'] = df['amount'].cumsum().astype(int)
-    df['unique'] = (~df['name'].duplicated()).cumsum() - 1
-    df['win_odds'] = 1.0 / df['unique']
-    df['next_expected'] = ((- entry_fee * (1 - df['win_odds'])
-                           + (df['amount'] - entry_fee) * df['win_odds'])
-                           * 100).fillna(0).astype(int)
+    start_date, _, entry_fee, df = parse_expected(raffle_data)
 
     # -- plot --
     ax = plt.axes()
@@ -232,27 +280,15 @@ def generate_expected(out_img_path: str,
         ax=ax, marker='o', style='r', label='Expected Value')
 
     # set limits
-    plt.ylim((df['next_expected'].min() - 100) * 110,
-             (df['next_expected'].max() + 100) * 110)
-    plt.xlim((pd.to_datetime(start_date), pd.to_datetime(cur_time_hel)))
+    plt.ylim(int(int_price_to_str((df['next_expected'].min() - 100) * 110)),
+             int(int_price_to_str((df['next_expected'].max() + 100) * 110)))
+    plt.xlim((pd.to_datetime(start_date), pd.to_datetime(get_cur_time_hel())))
 
-    # set title, labels and legend
+    # set title and labels
     plt.title(str(remove_emojis(chat_title).strip()) +
               f' | Fee {int_price_to_str(entry_fee)} €\n' +
-              f"Expected Value { (df['next_expected'].iloc[-1]/100):.2f} €")
+              f"Expected Value { int_price_to_str(df['next_expected'].iloc[-1])} €")
     plt.xlabel(None)
     plt.ylabel('Expected Value (€)')
-    ax.legend()
 
-    # format axis
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
-    ax.yaxis.set_major_formatter(
-        lambda x, _: int_price_to_str(int(int_price_to_str(x))))
-
-    # set grid
-    ax.xaxis.set_minor_locator(AutoMinorLocator(2))
-    ax.yaxis.set_minor_locator(AutoMinorLocator(2))
-    plt.grid(visible=True, which='major',
-             axis='both', linestyle='--', linewidth=0.5)
-    plt.savefig(out_img_path)
-    plt.clf()
+    configure_and_save_plot(out_img_path)
