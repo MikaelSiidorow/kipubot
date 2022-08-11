@@ -4,3 +4,7 @@ class NoEntriesError(Exception):
 
 class NoRaffleError(Exception):
     pass
+
+
+class AlreadyRegisteredError(Exception):
+    pass

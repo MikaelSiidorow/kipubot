@@ -1,6 +1,6 @@
 import os
 import re
-from typing import NamedTuple, Union
+from typing import NamedTuple, Union, List
 import psycopg.errors as PSErrors
 import pytz
 import matplotlib.pyplot as plt
@@ -13,7 +13,7 @@ from scipy.optimize import curve_fit
 import uncertainties as unc
 import uncertainties.unumpy as unp
 from db import get_con
-from errors import NoRaffleError
+from errors import NoRaffleError, AlreadyRegisteredError
 
 CON = get_con()
 
@@ -95,6 +95,46 @@ def read_excel_to_df(excel_path: str,
     return df
 
 
+def get_registered_member_ids(chat_id: int) -> List[int]:
+    return [row[0] for row in CON.execute(
+        '''SELECT chat_user.user_id
+            FROM chat_user, in_chat
+            WHERE chat_id = %s AND chat_user.user_id = in_chat.user_id''', (chat_id,)).fetchall()]
+
+
+def get_admin_ids(chat_id: int) -> List[int]:
+    return (CON.execute(
+        'SELECT admins FROM chat WHERE chat_id = %s', (chat_id,))
+        .fetchone()[0])
+
+
+def get_prev_winner_ids(chat_id: int) -> List[int]:
+    return (CON.execute(
+        'SELECT prev_winners FROM chat WHERE chat_id = %s', (chat_id,))
+        .fetchone()[0])
+
+
+def get_winner_id(chat_id: int) -> int:
+    return (CON.execute(
+        'SELECT cur_winner FROM chat WHERE chat_id = %s', (chat_id,))
+        .fetchone()[0])
+
+
+def register_user(chat_id: int, user_id: int) -> None:
+
+    save_user_or_ignore(user_id)
+
+    try:
+        CON.execute('''INSERT INTO in_chat(user_id, chat_id)
+                            VALUES (%s, %s)''',
+                    (user_id, chat_id))
+    except PSErrors.UniqueViolation as e:
+        CON.rollback()
+        raise AlreadyRegisteredError from e
+    else:
+        CON.commit()
+
+
 def get_raffle(chat_id: int, include_df: bool = False) -> RaffleData:
     query_result = CON.execute(
         'SELECT * FROM raffle WHERE chat_id = %s', [chat_id]).fetchone()
@@ -147,13 +187,14 @@ def save_raffle(chat_id: int,
     CON.commit()
 
 
-def save_user_or_ignore(user_id: int, username: str) -> None:
+def save_user_or_ignore(user_id: int) -> None:
     try:
         CON.execute('''INSERT INTO chat_user
-                    VALUES (%s, %s)
+                    VALUES (%s)
                     ON CONFLICT (user_id)
                     DO NOTHING''',
-                    (user_id, username))
+                    (user_id,))
+
     except PSErrors.IntegrityError as e:
         print('SQLite Error: ' + str(e))
         CON.rollback()
