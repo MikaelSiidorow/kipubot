@@ -1,5 +1,5 @@
 from enum import Enum
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler, ConversationHandler
 import telegram.ext.filters as Filters
 import psycopg.errors as PSErrors
@@ -61,47 +61,14 @@ expected_value_handler = CommandHandler(
     ~Filters.ChatType.PRIVATE)
 
 
-async def graph_dm(update: Update, _context: ContextTypes.DEFAULT_TYPE,
-                   graph_type: GraphType = 'graph') -> None:
-    query_result = CON.execute(
-        f'SELECT R.chat_id,chat.title FROM in_chat AS C \
-            JOIN raffle as R ON C.chat_id=R.chat_id JOIN\
-            chat ON chat.chat_id=R.chat_id\
-            WHERE C.user_id={update.effective_user.id}').fetchall()
-    print(query_result)
-    chat_buttons = []
-    for chat_id, chat_title in query_result:
-        chat_buttons.append(InlineKeyboardButton(
-            STRINGS['chat_button'] % {'chat_title': chat_title},
-            callback_data=[chat_id, chat_title, graph_type]))
-    keyboard = [
-        chat_buttons,
-        [InlineKeyboardButton(STRINGS['cancel_button'],
-                              callback_data='cancel')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
-        STRINGS['choose_channel'], reply_markup=reply_markup)
-
-
 async def dm_callback(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query.data == 'cancel':
         await query.message.edit_text(STRINGS['cancelled'], reply_markup=None)
         return ConversationHandler.END
-    _, chat_title, _ = query.data
-    await query.message.edit_text(
-        STRINGS['graph_dm'] % {'chat_title': chat_title}, reply_markup=None)
+
     await graph(update, _context)
+    await query.message.delete()
 
-
-graph_handler_dm = CommandHandler(
-    ['kuvaaja', 'graph'], graph_dm, Filters.ChatType.PRIVATE)
-
-expected_value_handler_dm = CommandHandler(
-    ['odotusarvo', 'expected'],
-    lambda u, c: graph_dm(u, c, graph_type=GraphType.EXPECTED),
-    Filters.ChatType.PRIVATE)
 
 graph_handler_dm_cb = CallbackQueryHandler(dm_callback)
