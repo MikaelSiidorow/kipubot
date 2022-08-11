@@ -97,4 +97,10 @@ async def dm_callback(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> No
 
 graph_handler_dm = CommandHandler(
     ['kuvaaja', 'graph'], graph_dm, Filters.ChatType.PRIVATE)
+
+expected_value_handler_dm = CommandHandler(
+    ['odotusarvo', 'expected'],
+    lambda u, c: graph_dm(u, c, graph_type=GraphType.EXPECTED),
+    Filters.ChatType.PRIVATE)
+
 graph_handler_dm_cb = CallbackQueryHandler(dm_callback)
