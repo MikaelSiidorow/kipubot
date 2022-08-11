@@ -91,7 +91,8 @@ async def dm_callback(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> No
         await query.message.edit_text(STRINGS['cancelled'], reply_markup=None)
         return ConversationHandler.END
     _, chat_title, _ = query.data
-    await query.message.edit_text(STRINGS['graph_dm'] % {'chat_title': chat_title}, reply_markup=None)
+    await query.message.edit_text(
+        STRINGS['graph_dm'] % {'chat_title': chat_title}, reply_markup=None)
     await graph(update, _context)
 
 

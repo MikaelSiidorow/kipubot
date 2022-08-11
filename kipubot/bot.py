@@ -7,7 +7,8 @@ from config import BOT_TOKEN
 from telegram.ext import ApplicationBuilder, PicklePersistence
 from handlers import (start_handler, moro_handler, excel_file_handler,
                       bot_added_handler, winner_handler, graph_handler,
-                      expected_value_handler,expected_value_handler_dm, raffle_setup_handler, graph_handler_dm, graph_handler_dm_cb)
+                      expected_value_handler, expected_value_handler_dm,
+                      raffle_setup_handler, graph_handler_dm, graph_handler_dm_cb)
 
 
 # -- SETUP --
