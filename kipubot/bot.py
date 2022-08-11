@@ -8,7 +8,8 @@ from telegram.ext import ApplicationBuilder, PicklePersistence
 from handlers import (start_handler, moro_handler, excel_file_handler,
                       bot_added_handler, winner_handler, graph_handler,
                       expected_value_handler, expected_value_handler_dm,
-                      raffle_setup_handler, graph_handler_dm, graph_handler_dm_cb)
+                      raffle_setup_handler, graph_handler_dm, graph_handler_dm_cb,
+                      no_dm_handler)
 
 
 # -- SETUP --
@@ -46,7 +47,7 @@ def main() -> None:
     app.add_handler(winner_handler)
 
     # warning about using a command in a private chat
-    # app.add_handler(no_dm_handler)
+    app.add_handler(no_dm_handler)
 
     # sending excel file in private chat
     app.add_handler(excel_file_handler)
