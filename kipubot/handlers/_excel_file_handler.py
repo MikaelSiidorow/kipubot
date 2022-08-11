@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes, ConversationHandler, MessageHandler
 import telegram.ext.filters as Filters
 from db import get_con
 from constants import EXCEL_MIME, STRINGS
+from utils import get_chats_where_winner
 
 CON = get_con()
 
@@ -11,16 +12,9 @@ CON = get_con()
 async def excel_file(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
     user_id = update.effective_user.id
 
-    query_result = (CON.execute('''SELECT c.chat_id, c.title
-                        FROM chat AS c, in_chat AS i
-                        WHERE i.user_id = %(id)s AND c.chat_id = i.chat_id
-                            AND(c.cur_winner = %(id)s OR
-                                %(id)s = ANY(c.prev_winners) OR
-                                %(id)s = ANY(c.admins))''',
-                                {'id': user_id})
-                    .fetchall())
+    chats = get_chats_where_winner(user_id)
 
-    if len(query_result) == 0:
+    if len(chats) == 0:
         await update.message.reply_text(STRINGS['not_winner'])
         return ConversationHandler.END
 
@@ -28,7 +22,7 @@ async def excel_file(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Uni
 
     chat_buttons = []
 
-    for chat_id, chat_title in query_result:
+    for chat_id, chat_title in chats:
         chat_buttons.append(InlineKeyboardButton(
             STRINGS['chat_button'] % {'chat_title': chat_title},
             callback_data=[chat_id, chat_title, doc]))

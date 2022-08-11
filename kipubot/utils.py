@@ -1,6 +1,6 @@
 import os
 import re
-from typing import NamedTuple, Union, List
+from typing import NamedTuple, Union, List, Tuple
 import psycopg.errors as PSErrors
 import pytz
 import matplotlib.pyplot as plt
@@ -118,6 +118,16 @@ def get_winner_id(chat_id: int) -> int:
     return (CON.execute(
         'SELECT cur_winner FROM chat WHERE chat_id = %s', (chat_id,))
         .fetchone()[0])
+
+
+def get_chats_where_winner(user_id: int) -> List[Tuple[int, str]]:
+    return CON.execute(
+        '''SELECT c.chat_id, c.title
+            FROM chat AS c, in_chat as i
+            WHERE i.user_id = %(id)s
+                AND c.chat_id = i.chat_id
+                AND (c.cur_winner = %(id)s)''',
+        {'id': user_id}).fetchall()
 
 
 def register_user(chat_id: int, user_id: int) -> None:
