@@ -43,6 +43,8 @@ STRINGS = {
                           '/cancel to cancel'),
     'invalid_fee': 'Invalid fee! ❌',
     'raffle_confirmation': 'New raffle setup in %(chat_title)s! ✔️',
+    'raffle_created_chat': 'New raffle created by @%(username)s! ✔️',
+    'raffle_updated_chat': 'Raffle updated by @%(username)s! ✔️',
     'timed_out': 'Timed out! 🕐',
     'start_prompt': ('Use the given commands or send me an Excel-file ' +
                      'from MobilePay if you\'re the host of a raffle!'),

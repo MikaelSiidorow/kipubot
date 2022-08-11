@@ -92,6 +92,9 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
         save_raffle(chat_id, start_date, end_date, entry_fee, df)
 
         await query.message.edit_text(STRINGS['updated_raffle'] % {'chat_title': chat_title})
+        await context.bot.send_message(chat_id,
+                                       STRINGS['raffle_updated_chat']
+                                       % {'username': update.effective_user.username})
         context.user_data.clear()
         return ConversationHandler.END
 
@@ -202,6 +205,8 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     save_raffle(chat_id, start_date, end_date, entry_fee, df)
 
     await query.message.edit_text(STRINGS['raffle_confirmation'] % {'chat_title': chat_title})
+    await context.bot.send_message(chat_id, STRINGS['raffle_created_chat']
+                                   % {'username': update.effective_user.username})
 
     return ConversationHandler.END
 
