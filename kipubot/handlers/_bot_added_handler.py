@@ -4,6 +4,7 @@ from telegram.constants import ChatMemberStatus
 import psycopg.errors as PSErrors
 from db import get_con
 from constants import STRINGS
+from utils import save_user_or_ignore
 
 CON = get_con()
 
@@ -27,11 +28,7 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                             ON CONFLICT (chat_id)
                             DO NOTHING''',
                         (chat_id, title, admin_ids))
-            CON.execute('''INSERT INTO chat_user (user_id)
-                            VALUES (%s)
-                            ON CONFLICT (user_id)
-                            DO NOTHING''',
-                        (user_id,))
+            save_user_or_ignore(user_id)
             CON.execute('''INSERT INTO in_chat (user_id, chat_id)
                             VALUES (%s, %s)
                             ON CONFLICT (user_id, chat_id)
