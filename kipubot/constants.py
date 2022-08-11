@@ -17,6 +17,7 @@ STRINGS = {
     'no_dm_warn': 'This command is not usable in private messages!',
     'cancelled': 'Cancelled! ❌',
     'unknown_error': 'Unknown error, please try again later! ❌',
+    'invalid_file': 'Invalid Excel file! ❌\n\n/start for instructions',
     'new_raffle_button': '🆕 Create a new raffle!',
     'update_raffle_button': '🔄 Update existing raffle!',
     'update_or_new_raffle': ('Selected %(chat_title)s!\n' +

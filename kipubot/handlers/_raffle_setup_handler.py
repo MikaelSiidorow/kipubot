@@ -6,7 +6,6 @@ from telegram.ext import (
     ContextTypes, ConversationHandler, MessageHandler,
     CallbackQueryHandler, CommandHandler, InvalidCallbackData)
 import telegram.ext.filters as Filters
-from telegram._files.document import Document as DocumentFile
 from constants import STRINGS
 from utils import get_raffle, save_raffle, read_excel_to_df
 
@@ -19,26 +18,18 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
         return ConversationHandler.END
 
     if (isinstance(query.data, InvalidCallbackData) or
-            len(query.data) != 3 or
+            len(query.data) != 2 or
             not isinstance(query.data[0], int) or
-            not isinstance(query.data[1], str) or
-            not isinstance(query.data[2], DocumentFile)):
+            not isinstance(query.data[1], str)):
 
         await query.message.edit_text(STRINGS['unknown_error'])
         return ConversationHandler.END
 
     chat_id = query.data[0]
     chat_title = query.data[1]
-    file = await context.bot.get_file(query.data[2])
 
     context.user_data['raffle_chat_id'] = chat_id
     context.user_data['raffle_chat_title'] = chat_title
-
-    if not os.path.exists(f'data/{chat_id}'):
-        os.mkdir(f'data/{chat_id}')
-
-    with open(f'data/{chat_id}/data.xlsx', 'wb') as f:
-        await file.download(out=f)
 
     raffle_data = get_raffle(chat_id)
 
@@ -96,7 +87,10 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
         await context.bot.send_message(chat_id,
                                        STRINGS['raffle_updated_chat']
                                        % {'username': update.effective_user.username})
+        # perform cleanup
         context.user_data.clear()
+        os.remove(excel_path)
+
         return ConversationHandler.END
 
     await query.message.edit_text(STRINGS['raffle_dates_prompt'])
@@ -194,6 +188,7 @@ async def get_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
 async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
     query = update.callback_query
+    dm_id = update.effective_chat.id
 
     if query.data == 'cancel':
         await query.message.edit_text(STRINGS['cancelled'])
@@ -206,13 +201,17 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     end_date = context.user_data['raffle_end_date'] + ':00'
     entry_fee = context.user_data['raffle_entry_fee']
 
-    excel_path = f'data/{chat_id}/data.xlsx'
+    excel_path = f'data/{dm_id}/data.xlsx'
     df = read_excel_to_df(excel_path, start_date, end_date)
     save_raffle(chat_id, start_date, end_date, entry_fee, df)
 
     await query.message.edit_text(STRINGS['raffle_confirmation'] % {'chat_title': chat_title})
     await context.bot.send_message(chat_id, STRINGS['raffle_created_chat']
                                    % {'username': update.effective_user.username})
+
+    # perform cleanup
+    context.user_data.clear()
+    os.remove(excel_path)
 
     return ConversationHandler.END
 

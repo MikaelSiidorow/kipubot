@@ -83,6 +83,15 @@ def remove_emojis(text: str) -> str:
     return emojis.sub(r' ', text)
 
 
+def validate_excel(excel_path: str) -> bool:
+    df = pd.read_excel(excel_path, usecols='A,B,D', header=None, names=[
+        'date', 'name', 'amount'], parse_dates=True)
+    return (df.size > 0 and
+            df['date'].dtype == 'datetime64[ns]' and
+            df['name'].dtype == 'object' and
+            df['amount'].dtype in ('int64', 'float64'))
+
+
 def read_excel_to_df(excel_path: str,
                      start_date: pd.Timestamp,
                      end_date: pd.Timestamp) -> pd.DataFrame:
