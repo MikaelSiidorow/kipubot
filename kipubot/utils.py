@@ -1,6 +1,7 @@
 import os
 import re
 from typing import NamedTuple, Union
+import psycopg.errors as PSErrors
 import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -144,6 +145,20 @@ def save_raffle(chat_id: int,
                 (chat_id, start_date, end_date, entry_fee, dates, entries, amounts))
 
     CON.commit()
+
+
+def save_user_or_ignore(user_id: int, username: str) -> None:
+    try:
+        CON.execute('''INSERT INTO users
+                    VALUES (%s, %s)
+                    ON CONFLICT (user_id)
+                    DO NOTHING''',
+                    (user_id, username))
+    except PSErrors.IntegrityError as e:
+        print('SQLite Error: ' + str(e))
+        CON.rollback()
+    else:
+        CON.commit()
 
 
 def parse_df_essentials(raffle_data: RaffleData) -> RaffleData:
