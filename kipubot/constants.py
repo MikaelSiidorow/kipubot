@@ -31,6 +31,7 @@ STRINGS = {
                             'YYYY-MM-DD HH:MM\n' +
                             'YYYY-MM-DD HH:MM\n\n' +
                             '/cancel to cancel'),
+    'end_date_before_start': 'End date cannot be before start date! ❌',
     'invalid_date': 'Invalid date! ❌',
     'set_fee_button': '#️⃣ Set fee',
     'default_fee_button': '1️⃣ Use default (1€)',

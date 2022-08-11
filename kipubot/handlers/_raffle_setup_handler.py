@@ -1,5 +1,6 @@
 import os
 from typing import Union
+import pandas as pd
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes, ConversationHandler, MessageHandler,
@@ -111,6 +112,11 @@ async def invalid_date(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> U
 
 async def get_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     start_date, end_date = update.message.text.split("\n")
+
+    if not pd.Timestamp(end_date) > pd.Timestamp(start_date):
+        await update.message.reply_text(STRINGS['end_date_before_start'])
+
+        return 'get_date'
 
     context.user_data['raffle_start_date'] = start_date
     context.user_data['raffle_end_date'] = end_date
