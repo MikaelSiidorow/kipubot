@@ -10,6 +10,7 @@ from constants import STRINGS
 
 CON = get_con()
 
+
 class GraphType(Enum):
     EXPECTED = 'expected'
     GRAPH = 'graph'
@@ -20,7 +21,6 @@ def get_graph_img(graph_type: GraphType) -> str:
         return 'expected.png'
 
     return 'graph.png'
-
 
 async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE,
                 graph_type: GraphType = 'graph') -> None:
@@ -55,15 +55,19 @@ expected_value_handler = CommandHandler(
     ~Filters.ChatType.PRIVATE)
 
 
-async def graph_dm(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+async def graph_dm(update: Update, _context: ContextTypes.DEFAULT_TYPE,
+                graph_type: GraphType = 'graph') -> None:
     query_result = CON.execute(
-        f'SELECT R.chat_id,chat.title FROM in_chat AS C JOIN raffle as R ON C.chat_id=R.chat_id JOIN chat ON chat.chat_id=R.chat_id WHERE C.user_id={update.effective_user.id}').fetchall()
+        f'SELECT R.chat_id,chat.title FROM in_chat AS C \
+            JOIN raffle as R ON C.chat_id=R.chat_id JOIN\
+            chat ON chat.chat_id=R.chat_id\
+            WHERE C.user_id={update.effective_user.id}').fetchall()
     print(query_result)
     chat_buttons = []
     for chat_id, chat_title in query_result:
         chat_buttons.append(InlineKeyboardButton(
             STRINGS['chat_button'] % {'chat_title': chat_title},
-            callback_data=[chat_id, chat_title]))
+            callback_data=[chat_id, chat_title,graph_type]))
     keyboard = [
         chat_buttons,
         [InlineKeyboardButton(STRINGS['cancel_button'],
@@ -78,8 +82,32 @@ async def graph_dm(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 async def dm_callback(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     print(query.data)
+    if query.data == 'cancel':
+        await query.message.edit_text(STRINGS['cancelled'], reply_markup=None)
+        return ConversationHandler.END
+    chat_id, chat_title,graph_type = query.data
+    graph_path = f'data/{chat_id}/{get_graph_img(graph_type)}'
+    await query.message.edit_text(STRINGS['graph_dm'] % {'chat_title': chat_title})
 
-    return ConversationHandler.END
+    try:
+        if graph_type == GraphType.EXPECTED:
+            generate_expected(graph_path, chat_id, chat_title)
+        else:
+            generate_graph(graph_path, chat_id, chat_title)
+
+        with open(graph_path, 'rb') as f:
+            await query.message.reply_photo(photo=f)
+    except NoRaffleError:
+        await query.message.reply_text(STRINGS['no_raffle'] % {'chat_title': chat_title})
+    except NoEntriesError:
+        await query.message.reply_text(STRINGS['no_entries'] % {'chat_title': chat_title})
+    except PSErrors.Error as e:
+        print(e)
+        await query.message.reply_text(STRINGS['raffle_db_error'])
+    except FileNotFoundError:
+        await query.message.reply_text(STRINGS['no_data'] % {'chat_title': chat_title})
+
+    
 graph_handler_dm = CommandHandler(
     ['kuvaaja', 'graph'], graph_dm, Filters.ChatType.PRIVATE)
 graph_handler_dm_cb = CallbackQueryHandler(dm_callback)

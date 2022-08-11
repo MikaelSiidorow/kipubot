@@ -51,5 +51,6 @@ STRINGS = {
     'user_not_found': ('Error getting user!\n' +
                        'Perhaps they haven\'t /moro ed? 🤔'),
     'already_winner': 'You are already the winner!',
-    'winner_confirmation': '%(username)s is the new winner!'
+    'winner_confirmation': '%(username)s is the new winner!',
+    'graph_dm':'The graph for %(chat_title)s:'
 }
