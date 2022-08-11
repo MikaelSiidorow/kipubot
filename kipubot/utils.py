@@ -220,8 +220,9 @@ def generate_expected(out_img_path: str,
     df['amount'] = df['amount'].cumsum().astype(int)
     df['unique'] = (~df['name'].duplicated()).cumsum() - 1
     df['win_odds'] = 1.0 / df['unique']
-    df['next_expected'] = - entry_fee * \
-        (1 - df['win_odds']) + (df['amount']) * df['win_odds']
+    df['next_expected'] = ((- entry_fee * (1 - df['win_odds'])
+                           + (df['amount'] - entry_fee) * df['win_odds'])
+                           * 100).fillna(0).astype(int)
 
     # -- plot --
     ax = plt.axes()
@@ -231,7 +232,8 @@ def generate_expected(out_img_path: str,
         ax=ax, marker='o', style='r', label='Expected Value')
 
     # set limits
-    plt.ylim(0, )
+    plt.ylim((df['next_expected'].min() - 100) * 110,
+             (df['next_expected'].max() + 100) * 110)
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(cur_time_hel)))
 
     # set title, labels and legend
@@ -244,7 +246,8 @@ def generate_expected(out_img_path: str,
 
     # format axis
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m. %H:%M'))
-    ax.yaxis.set_major_formatter(lambda x, _: int_price_to_str(x))
+    ax.yaxis.set_major_formatter(
+        lambda x, _: int_price_to_str(int(int_price_to_str(x))))
 
     # set grid
     ax.xaxis.set_minor_locator(AutoMinorLocator(2))
