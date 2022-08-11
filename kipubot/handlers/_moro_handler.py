@@ -5,7 +5,6 @@ from constants import STRINGS
 from utils import register_user
 from errors import AlreadyRegisteredError
 
-
 async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id

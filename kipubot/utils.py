@@ -136,7 +136,6 @@ def register_user(chat_id: int, user_id: int) -> None:
 
 
 def get_raffle(chat_id: int, include_df: bool = False) -> RaffleData:
-
     query_result = CON.execute(
         'SELECT * FROM raffle WHERE chat_id = %s', [chat_id]).fetchone()
 
@@ -195,6 +194,7 @@ def save_user_or_ignore(user_id: int) -> None:
                     ON CONFLICT (user_id)
                     DO NOTHING''',
                     (user_id,))
+
     except PSErrors.IntegrityError as e:
         print('SQLite Error: ' + str(e))
         CON.rollback()

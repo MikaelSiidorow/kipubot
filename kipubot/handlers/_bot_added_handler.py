@@ -29,6 +29,7 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                             DO NOTHING''',
                         (chat_id, title, admin_ids))
             save_user_or_ignore(user_id)
+
             CON.execute('''INSERT INTO in_chat (user_id, chat_id)
                             VALUES (%s, %s)
                             ON CONFLICT (user_id, chat_id)
