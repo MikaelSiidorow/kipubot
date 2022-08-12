@@ -21,7 +21,7 @@ def get_graph_img(graph_type: GraphType) -> str:
 
 
 async def graph(update: Update, _context: ContextTypes.DEFAULT_TYPE,
-                graph_type: GraphType = 'graph') -> None:
+                graph_type: GraphType = GraphType.GRAPH) -> None:
     chat_id = update.effective_chat.id
     chat_title = update.effective_chat.title
     graph_path = f'data/{chat_id}/{get_graph_img(graph_type)}'

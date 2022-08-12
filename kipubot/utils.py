@@ -159,7 +159,7 @@ def get_raffle(chat_id: int, include_df: bool = False) -> RaffleData:
         'SELECT * FROM raffle WHERE chat_id = %s', [chat_id]).fetchone()
 
     if query_result is None:
-        return None
+        raise NoRaffleError(f'No raffle found for chat {chat_id}')
 
     _, start_date, end_date, entry_fee, dates, entries, amounts = query_result
 
@@ -272,20 +272,20 @@ def configure_and_save_plot(out_img_path: str) -> None:
     ax.yaxis.set_minor_locator(AutoMinorLocator(2))
     plt.grid(visible=True, which='major',
              axis='both', linestyle='--', linewidth=0.5)
+
+    if not os.path.exists(os.path.dirname(out_img_path)):
+        os.makedirs(os.path.dirname(out_img_path))
+
     plt.savefig(out_img_path)
     plt.clf()
 
 
 def generate_graph(out_img_path: str,
-                   chat_id: str,
+                   chat_id: int,
                    chat_title: str) -> None:
+
+    # -- get raffle data --
     raffle_data = get_raffle(chat_id, include_df=True)
-
-    if not os.path.exists(os.path.dirname(out_img_path)):
-        os.makedirs(os.path.dirname(out_img_path))
-
-    if not raffle_data:
-        raise NoRaffleError(f'No raffle data found in {chat_title}!')
 
     # -- parse and fit data --
     start_date, end_date, _, df = parse_graph(raffle_data)
@@ -293,7 +293,6 @@ def generate_graph(out_img_path: str,
 
     # -- plot --
     ax = plt.axes()
-
     # plot data
     df['amount'][:-1].plot(ax=ax, marker='o', style='r', label='Pool')
     # plot regression
@@ -305,12 +304,11 @@ def generate_graph(out_img_path: str,
     ax.plot(px, lpb, 'k--', label='95% prediction band')
     ax.plot(px, upb, 'k--')
 
-    # set limits
+    # -- style graph --
     pred_max_pool = (nom+1.96*std)[-1]
     plt.ylim(0, pred_max_pool)
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
 
-    # set title and labels
     plt.title(str(remove_emojis(chat_title).strip()) + "\n" +
               f"Entries {df['unique'].max()} | Pool {int_price_to_str(df['amount'].max())} €")
     plt.xlabel(None)
@@ -320,31 +318,26 @@ def generate_graph(out_img_path: str,
 
 
 def generate_expected(out_img_path: str,
-                      chat_id: str,
+                      chat_id: int,
                       chat_title: str) -> None:
+
+    # -- get raffle data --
     raffle_data = get_raffle(chat_id, include_df=True)
 
-    if not os.path.exists(os.path.dirname(out_img_path)):
-        os.makedirs(os.path.dirname(out_img_path))
-
-    if not raffle_data:
-        raise NoRaffleError(f'No raffle data found in {chat_title}!')
-
+    # -- parse and fit data --
     start_date, _, entry_fee, df = parse_expected(raffle_data)
 
     # -- plot --
     ax = plt.axes()
 
-    # plot data
     df['next_expected'].plot(
         ax=ax, marker='o', style='r', label='Expected Value')
 
-    # set limits
+    # -- style graph --
     plt.ylim(int(int_price_to_str((df['next_expected'].min() - 100) * 110)),
              int(int_price_to_str((df['next_expected'].max() + 100) * 110)))
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(get_cur_time_hel())))
 
-    # set title and labels
     plt.title(str(remove_emojis(chat_title).strip()) +
               f' | Fee {int_price_to_str(entry_fee)} €\n' +
               f"Expected Value { int_price_to_str(df['next_expected'].iloc[-1])} €")
