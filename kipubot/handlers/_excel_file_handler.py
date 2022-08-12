@@ -23,7 +23,7 @@ async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Unio
     doc = update.message.document
     file = await context.bot.get_file(doc)
     base_path = f'data/{dm_id}'
-    excel_path = base_path + '/data.xslx'
+    excel_path = base_path + '/data.xlsx'
 
     if not os.path.exists(base_path):
         os.mkdir(base_path)
