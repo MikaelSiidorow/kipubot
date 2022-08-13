@@ -6,9 +6,9 @@ name = "pypi"
 [scripts]
 init = "python3 ./init_db.py"
 deinit = "python3 ./deinit_db.py"
-start = "python3 kipubot/bot.py"
-dev = "watchfiles 'python3 kipubot/bot.py' kipubot"
-lint = "python3 ./lint.py"
+start = "python3 -m kipubot"
+dev = "watchfiles 'python3 -m kipubot' kipubot"
+lint = "pylint kipubot"
 
 [packages]
 pandas = "*"

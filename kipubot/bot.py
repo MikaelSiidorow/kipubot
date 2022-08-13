@@ -54,7 +54,3 @@ def main() -> None:
     # app.add_handler(MessageHandler(Filters.ALL | Filters.Sticker.ALL, tester))
 
     app.run_polling()
-
-
-if __name__ == "__main__":
-    main()
