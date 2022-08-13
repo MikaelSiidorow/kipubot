@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
-from constants import STRINGS
+from kipubot.constants import STRINGS
 
 
 async def start(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:

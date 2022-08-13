@@ -1,9 +1,10 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 import telegram.ext.filters as Filters
-from constants import STRINGS
-from utils import register_user
-from errors import AlreadyRegisteredError
+from kipubot.constants import STRINGS
+from kipubot.utils import register_user
+from kipubot.errors import AlreadyRegisteredError
+
 
 async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id

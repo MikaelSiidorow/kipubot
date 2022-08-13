@@ -2,9 +2,9 @@ from telegram import Update
 from telegram.ext import ContextTypes, ChatMemberHandler
 from telegram.constants import ChatMemberStatus
 import psycopg.errors as PSErrors
-from db import get_con
-from constants import STRINGS
-from utils import save_user_or_ignore
+from kipubot import get_con
+from kipubot.constants import STRINGS
+from kipubot.utils import save_user_or_ignore
 
 CON = get_con()
 

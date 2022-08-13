@@ -3,11 +3,11 @@ from telegram.ext import ContextTypes, CommandHandler
 from telegram.constants import MessageEntityType
 import telegram.ext.filters as Filters
 import psycopg.errors as PSErrors
-from db import get_con
-from constants import STRINGS
-from utils import (get_registered_member_ids,
-                   get_admin_ids, get_prev_winner_ids,
-                   get_winner_id)
+from kipubot import get_con
+from kipubot.constants import STRINGS
+from kipubot.utils import (get_registered_member_ids,
+                           get_admin_ids, get_prev_winner_ids,
+                           get_winner_id)
 
 CON = get_con()
 
@@ -28,12 +28,11 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     username = update.message.text.split(" ")[1][1:]
 
     try:
-        admin_ids = get_admin_ids(chat_id)
+        is_admin = user_id in get_admin_ids(chat_id)
+        is_cur_winner = user_id == get_winner_id(chat_id)
+
         prev_winner_ids = get_prev_winner_ids(chat_id)
-        cur_winner_id = get_winner_id(chat_id)
-        is_admin = user_id in admin_ids
         is_prev_winner = prev_winner_ids and user_id == prev_winner_ids[-1]
-        is_cur_winner = user_id == cur_winner_id
 
         if not is_admin and not is_cur_winner and not is_prev_winner:
             await update.message.reply_text(STRINGS['forbidden_command'])

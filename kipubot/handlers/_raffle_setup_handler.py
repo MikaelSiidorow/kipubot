@@ -6,8 +6,9 @@ from telegram.ext import (
     ContextTypes, ConversationHandler, MessageHandler,
     CallbackQueryHandler, CommandHandler, InvalidCallbackData)
 import telegram.ext.filters as Filters
-from constants import STRINGS
-from utils import get_raffle, save_raffle, read_excel_to_df
+from kipubot.constants import STRINGS
+from kipubot.utils import get_raffle, save_raffle, read_excel_to_df
+from kipubot.errors import NoRaffleError
 
 
 async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
@@ -31,9 +32,9 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     context.user_data['raffle_chat_id'] = chat_id
     context.user_data['raffle_chat_title'] = chat_title
 
-    raffle_data = get_raffle(chat_id)
+    try:
+        get_raffle(chat_id)
 
-    if raffle_data is not None:
         keyboard = [
             [InlineKeyboardButton(
                 STRINGS['new_raffle_button'], callback_data='raffle:new_raffle')],
@@ -46,9 +47,9 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.message.edit_text(STRINGS['update_or_new_raffle'] % {'chat_title': chat_title})
-
         await query.message.edit_reply_markup(reply_markup)
-    else:
+
+    except NoRaffleError:
         keyboard = [
             [InlineKeyboardButton(
                 STRINGS['new_raffle_button'], callback_data='raffle:new_raffle')],
@@ -58,7 +59,6 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.message.edit_text(STRINGS['new_raffle_text'] % {'chat_title': chat_title})
-
         await query.message.edit_reply_markup(reply_markup)
 
     return 'ask_date'
@@ -77,9 +77,10 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
 
     if command == 'use_existing':
         chat_id = context.user_data['raffle_chat_id']
+        dm_id = update.effective_chat.id
 
         start_date, end_date, entry_fee, _ = get_raffle(chat_id)
-        excel_path = f'data/{chat_id}/data.xlsx'
+        excel_path = f'data/{dm_id}/data.xlsx'
         df = read_excel_to_df(excel_path, start_date, end_date)
         save_raffle(chat_id, start_date, end_date, entry_fee, df)
 

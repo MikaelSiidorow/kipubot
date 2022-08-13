@@ -3,9 +3,9 @@ from typing import Union
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler
 import telegram.ext.filters as Filters
-from db import get_con
-from constants import EXCEL_MIME, STRINGS
-from utils import get_chats_where_winner, validate_excel
+from kipubot import get_con
+from kipubot.constants import EXCEL_MIME, STRINGS
+from kipubot.utils import get_chats_where_winner, validate_excel
 
 CON = get_con()
 

@@ -25,6 +25,7 @@ uncertainties = "*"
 watchfiles="*"
 autopep8 = "*"
 pylint = "*"
+pytype = "*"
 
 [requires]
 python_version = "3.8"

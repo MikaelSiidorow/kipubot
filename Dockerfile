@@ -21,8 +21,9 @@ FROM base as runtime
 COPY --from=python-deps /.venv /.venv
 ENV PATH="/.venv/bin:$PATH"
 
-# Setup workdir
+# Setup workdir and add to PYTHONPATH
 WORKDIR /bot
+ENV PYTHONPATH="/bot/kipubot/:$PYTHONPATH"
 
 # Install app into container
 COPY . .
