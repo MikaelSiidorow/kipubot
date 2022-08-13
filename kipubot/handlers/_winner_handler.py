@@ -3,11 +3,11 @@ from telegram.ext import ContextTypes, CommandHandler
 from telegram.constants import MessageEntityType
 import telegram.ext.filters as Filters
 import psycopg.errors as PSErrors
-from db import get_con
-from constants import STRINGS
-from utils import (get_registered_member_ids,
-                   get_admin_ids, get_prev_winner_ids,
-                   get_winner_id)
+from kipubot import get_con
+from kipubot.constants import STRINGS
+from kipubot.utils import (get_registered_member_ids,
+                           get_admin_ids, get_prev_winner_ids,
+                           get_winner_id)
 
 CON = get_con()
 

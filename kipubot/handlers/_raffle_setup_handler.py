@@ -6,9 +6,9 @@ from telegram.ext import (
     ContextTypes, ConversationHandler, MessageHandler,
     CallbackQueryHandler, CommandHandler, InvalidCallbackData)
 import telegram.ext.filters as Filters
-from constants import STRINGS
-from utils import get_raffle, save_raffle, read_excel_to_df
-from errors import NoRaffleError
+from kipubot.constants import STRINGS
+from kipubot.utils import get_raffle, save_raffle, read_excel_to_df
+from kipubot.errors import NoRaffleError
 
 
 async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:

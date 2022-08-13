@@ -12,8 +12,8 @@ from scipy import stats
 from scipy.optimize import curve_fit
 import uncertainties as unc
 import uncertainties.unumpy as unp
-from db import get_con
-from errors import NoRaffleError, AlreadyRegisteredError
+from kipubot import get_con
+from kipubot.errors import NoRaffleError, AlreadyRegisteredError
 
 CON = get_con()
 

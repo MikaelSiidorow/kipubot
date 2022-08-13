@@ -3,11 +3,11 @@
 
 import os
 import logging
-from config import BOT_TOKEN
 from telegram.ext import ApplicationBuilder, PicklePersistence
-from handlers import (start_handler, moro_handler, excel_file_handler,
-                      bot_added_handler, winner_handler, graph_handler,
-                      expected_value_handler, raffle_setup_handler, no_dm_handler)
+from kipubot import BOT_TOKEN
+from kipubot.handlers import (start_handler, moro_handler, excel_file_handler,
+                              bot_added_handler, winner_handler, graph_handler,
+                              expected_value_handler, raffle_setup_handler, no_dm_handler)
 
 
 # -- SETUP --

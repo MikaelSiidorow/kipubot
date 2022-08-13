@@ -3,9 +3,9 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 import telegram.ext.filters as Filters
 import psycopg.errors as PSErrors
-from errors import NoEntriesError, NoRaffleError
-from utils import generate_graph, generate_expected
-from constants import STRINGS
+from kipubot.errors import NoEntriesError, NoRaffleError
+from kipubot.utils import generate_graph, generate_expected
+from kipubot.constants import STRINGS
 
 
 class GraphType(Enum):

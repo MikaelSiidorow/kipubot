@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 import telegram.ext.filters as Filters
-from constants import STRINGS
+from kipubot.constants import STRINGS
 
 
 async def chat_only(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
