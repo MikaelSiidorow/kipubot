@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import psycopg
-from kipubot import DATABASE_URL
+from kipubot import get_con
 
-CON = psycopg.connect(DATABASE_URL)
+CON = get_con()
 
 try:
     CON.execute('''DROP TABLE raffle''')
