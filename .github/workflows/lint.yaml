@@ -1,7 +1,7 @@
 name: lint-project
 on: [push]
 env:
-  PYTHONPATH: kipubot/:$PYTHONPATH
+  PYTHONPATH: ${PYTHONPATH}:kipubot
 jobs:
   build:
     runs-on: ubuntu-latest
