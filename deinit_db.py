@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import psycopg
-from kipubot.config import DATABASE_URL
+from kipubot import DATABASE_URL
 
 CON = psycopg.connect(DATABASE_URL)
 
