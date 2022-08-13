@@ -1,7 +1,5 @@
 name: lint-project
 on: [push]
-env:
-  PYTHONPATH: ${PYTHONPATH}:kipubot
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,6 +16,9 @@ jobs:
       - name: Install dependencies
         run: |
           pipenv install --dev
+      - name: Set PYTHONPATH
+        run: |
+          echo "PYTHONPATH$PYTHONPATH:kipubot" >> $GITHUB_ENV
       - name: Lint with pylint
         run: |
           pipenv run lint
