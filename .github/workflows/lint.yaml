@@ -18,7 +18,7 @@ jobs:
           pipenv install --dev
       - name: Set PYTHONPATH
         run: |
-          echo "PYTHONPATH=$PYTHONPATH:kipubot" >> $GITHUB_ENV
+          echo "PYTHONPATH=${PYTHONPATH}:kipubot" >> $GITHUB_ENV
       - name: Lint with pylint
         run: |
           pipenv run lint
