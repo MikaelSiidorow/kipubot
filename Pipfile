@@ -9,6 +9,7 @@ deinit = "python3 ./deinit_db.py"
 start = "python3 -m kipubot"
 dev = "watchfiles 'python3 -m kipubot' kipubot"
 lint = "pylint kipubot"
+test = "pytest"
 
 [packages]
 pandas = "*"
@@ -26,6 +27,7 @@ watchfiles="*"
 autopep8 = "*"
 pylint = "*"
 pytype = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.8"
