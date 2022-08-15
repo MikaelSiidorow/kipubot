@@ -1,34 +1,64 @@
 name: lint-project
+
 on: [pull_request, workflow_call]
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Set up Python 3.8
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
+
       - name: Install pipenv
         run: |
           python3 -m pip install --upgrade pip
           pip install pipenv
+
       - name: Install dependencies
         run: |
           pipenv install --dev
+
       - name: Set PYTHONPATH
         run: |
           echo "PYTHONPATH=${PYTHONPATH}:kipubot" >> $GITHUB_ENV
+
       - name: Lint with pylint
         run: |
           pipenv run lint
-      - name: Set ENV variables
+
+      - name: Set testing BOT_TOKEN
         run: |
           echo "BOT_TOKEN=${{secrets.TEST_BOT_TOKEN}}" >> $GITHUB_ENV
-          echo "DATABASE_URL=${{secrets.TEST_DATABASE_URL}}" >> $GITHUB_ENV
+
       - name: Type-check with pytype
         run: |
           pipenv run pytype
+        env:
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/postgres"
+
       - name: Run unit tests
         run: |
           pipenv run pytest
+        env:
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/postgres"
