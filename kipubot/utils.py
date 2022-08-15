@@ -292,7 +292,7 @@ def generate_graph(out_img_path: str,
     px, nom, std, lpb, upb = fit_timedata(df['datenum'], df['amount'])
 
     # -- plot --
-    ax = plt.axes()
+    ax = plt.gca()
     # plot data
     df['amount'][:-1].plot(ax=ax, marker='o', style='r', label='Pool')
     # plot regression
@@ -328,7 +328,7 @@ def generate_expected(out_img_path: str,
     start_date, _, entry_fee, df = parse_expected(raffle_data)
 
     # -- plot --
-    ax = plt.axes()
+    ax = plt.gca()
 
     df['next_expected'].plot(
         ax=ax, marker='o', style='r', label='Expected Value')
