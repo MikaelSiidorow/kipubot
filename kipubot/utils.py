@@ -1,6 +1,6 @@
 import os
 import re
-from typing import NamedTuple, Union
+from typing import NamedTuple, Optional
 import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -19,7 +19,7 @@ class RaffleData(NamedTuple):
     start_date: pd.Timestamp
     end_date: pd.Timestamp
     entry_fee: int
-    df: Union[None, pd.DataFrame]
+    df: Optional[pd.DataFrame]
 
 
 def int_price_to_str(num: int) -> str:
