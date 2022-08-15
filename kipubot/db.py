@@ -1,3 +1,4 @@
+import logging
 from typing import Tuple, List, Optional
 from pandas import Timestamp, DataFrame
 import psycopg
@@ -7,16 +8,19 @@ from kipubot.errors import AlreadyRegisteredError
 # STORE DB CONNECTION
 _CON: Optional[psycopg.Connection] = None
 
+# LOGGER
+_logger = logging.getLogger(__name__)
+
 
 def _init_db(url: str) -> None:
     global _CON  # pylint: disable=global-statement
 
     if not _CON:
-        print('Connecting to DB...')
+        _logger.info('Connecting to DB...')
         _CON = psycopg.connect(url)
-        print('Connected!')
+        _logger.info('Connected!')
 
-    print('Initializing database...')
+    _logger.info('Initializing database...')
     try:
         _CON.execute('''CREATE TABLE IF NOT EXISTS chat (
                         chat_id BIGINT PRIMARY KEY,
@@ -46,11 +50,11 @@ def _init_db(url: str) -> None:
                         amounts INTEGER[]
                     )''')
     except PSErrors.Error as e:
-        print('Unknown error during database initialization:')
-        print(e)
+        _logger.error('Unknown error during database initialization:')
+        _logger.error(e)
         _CON.rollback()
     else:
-        print('Database succesfully initialized!')
+        _logger.info('Database succesfully initialized!')
         _CON.commit()
 
 
