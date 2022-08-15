@@ -1,5 +1,5 @@
 name: lint-project
-on: [push, workflow_call]
+on: [pull_request, workflow_call]
 jobs:
   lint:
     runs-on: ubuntu-latest
