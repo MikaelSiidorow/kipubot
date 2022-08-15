@@ -1,8 +1,57 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from pandas import Timestamp, DataFrame
+import psycopg
 import psycopg.errors as PSErrors
-from kipubot import _CON
 from kipubot.errors import AlreadyRegisteredError
+
+# STORE DB CONNECTION
+_CON: Optional[psycopg.Connection] = None
+
+
+def _init_db(url: str) -> None:
+    global _CON  # pylint: disable=global-statement
+
+    if not _CON:
+        print('Connecting to DB...')
+        _CON = psycopg.connect(url)
+        print('Connected!')
+
+    print('Initializing database...')
+    try:
+        _CON.execute('''CREATE TABLE IF NOT EXISTS chat (
+                        chat_id BIGINT PRIMARY KEY,
+                        title VARCHAR(128),
+                        admins BIGINT[],
+                        prev_winners BIGINT[],
+                        cur_winner BIGINT
+                    )''')
+
+        _CON.execute('''CREATE TABLE IF NOT EXISTS chat_user (
+                        user_id BIGINT PRIMARY KEY
+                    )''')
+
+        _CON.execute('''CREATE TABLE IF NOT EXISTS in_chat (
+                        user_id BIGINT REFERENCES chat_user(user_id),
+                        chat_id BIGINT REFERENCES chat(chat_id),
+                        PRIMARY KEY (user_id, chat_id)
+                    )''')
+
+        _CON.execute('''CREATE TABLE IF NOT EXISTS raffle (
+                        chat_id BIGINT PRIMARY KEY REFERENCES chat(chat_id),
+                        start_date TIMESTAMP,
+                        end_date TIMESTAMP,
+                        entry_fee INTEGER,
+                        dates TIMESTAMP[],
+                        entries VARCHAR(128)[],
+                        amounts INTEGER[]
+                    )''')
+    except PSErrors.Error as e:
+        print('Unknown error during database initialization:')
+        print(e)
+        _CON.rollback()
+    else:
+        print('Database succesfully initialized!')
+        _CON.commit()
 
 
 def get_registered_member_ids(chat_id: int) -> List[int]:
