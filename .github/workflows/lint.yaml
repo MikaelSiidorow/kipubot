@@ -1,7 +1,7 @@
 name: lint-project
 on: [push]
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -22,6 +22,10 @@ jobs:
       - name: Lint with pylint
         run: |
           pipenv run lint
+      - name: Set ENV variables
+        run: |
+          echo "BOT_TOKEN=${{secrets.TEST_BOT_TOKEN}}" >> $GITHUB_ENV
+          echo "DATABASE_URL=${{secrets.TEST_DATABASE_URL}}" >> $GITHUB_ENV
       - name: Type-check with pytype
         run: |
           pipenv run pytype
