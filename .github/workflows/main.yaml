@@ -3,7 +3,7 @@ name: heroku-deployment
 on:
   workflow_run:
     workflows:
-      - lint-project
+      - lint
     types:
       - completed
     branches:
