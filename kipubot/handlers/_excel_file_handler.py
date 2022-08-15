@@ -1,5 +1,5 @@
 import os
-from typing import Union
+from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler
 import telegram.ext.filters as Filters
@@ -10,7 +10,7 @@ from kipubot.utils import get_chats_where_winner, validate_excel
 CON = get_con()
 
 
-async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
+async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     user_id = update.effective_user.id
     dm_id = update.effective_chat.id
 

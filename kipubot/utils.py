@@ -1,6 +1,6 @@
 import os
 import re
-from typing import NamedTuple, Union, List, Tuple
+from typing import NamedTuple, List, Tuple, Optional
 import psycopg.errors as PSErrors
 import pytz
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ class RaffleData(NamedTuple):
     start_date: pd.Timestamp
     end_date: pd.Timestamp
     entry_fee: int
-    df: Union[None, pd.DataFrame]
+    df: Optional[pd.DataFrame]
 
 
 def int_price_to_str(num: int) -> str:

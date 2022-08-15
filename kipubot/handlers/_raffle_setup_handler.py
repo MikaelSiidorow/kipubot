@@ -1,5 +1,5 @@
 import os
-from typing import Union
+from typing import Optional
 import pandas as pd
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -11,7 +11,7 @@ from kipubot.utils import get_raffle, save_raffle, read_excel_to_df
 from kipubot.errors import NoRaffleError
 
 
-async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
+async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     query = update.callback_query
     if query.data == 'cancel':
         await query.message.edit_text(STRINGS['cancelled'])
@@ -64,7 +64,7 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Un
     return 'ask_date'
 
 
-async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
+async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     query = update.callback_query
     chat_title = context.user_data['raffle_chat_title']
 
@@ -99,7 +99,7 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[
     return 'get_date'
 
 
-async def invalid_date(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
+async def invalid_date(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     await update.message.reply_text(STRINGS['invalid_date'])
 
     return 'get_date'
@@ -133,7 +133,7 @@ async def get_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     return 'ask_fee'
 
 
-async def ask_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
+async def ask_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     query = update.callback_query
 
     if query.data == 'cancel':
@@ -187,7 +187,7 @@ async def get_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     return 'finish_setup'
 
 
-async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, None]:
+async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     query = update.callback_query
     dm_id = update.effective_chat.id
 
