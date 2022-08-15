@@ -3,13 +3,11 @@ from telegram.ext import ContextTypes, CommandHandler
 from telegram.constants import MessageEntityType
 import telegram.ext.filters as Filters
 import psycopg.errors as PSErrors
-from kipubot import get_con
 from kipubot.constants import STRINGS
-from kipubot.utils import (get_registered_member_ids,
-                           get_admin_ids, get_prev_winner_ids,
-                           get_winner_id)
-
-CON = get_con()
+from kipubot.db import (admin_cycle_winners, cycle_winners,
+                        get_registered_member_ids,
+                        get_admin_ids, get_prev_winner_ids,
+                        get_winner_id, replace_cur_winner)
 
 
 async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -56,30 +54,18 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # admin: moves current to prev and makes new current
         if is_admin:
-            CON.execute('''UPDATE chat
-                            SET prev_winners = array_append(prev_winners, cur_winner),
-                                cur_winner=%s
-                            WHERE chat_id=%s''',
-                        (winner_id, chat_id))
+            admin_cycle_winners(winner_id, chat_id)
         # prev_winner: replaces current winner directly (assumed typo)
         elif is_prev_winner:
-            CON.execute('''UPDATE chat
-                            SET cur_winner=%s
-                            WHERE chat_id=%s''',
-                        (winner_id, chat_id))
+            replace_cur_winner(winner_id, chat_id)
         # winner: moves themselves to prev and makes new current
         else:
-            CON.execute('''UPDATE chat
-                            SET prev_winners=array_append(prev_winners, %s),
-                                cur_winner=%s'
-                            WHERE chat_id=%s''',
-                        (user_id, winner_id, chat_id))
+            cycle_winners(user_id, winner_id, chat_id)
     except PSErrors.Error as e:
         print(e)
         await update.message.reply_text(STRINGS['user_not_found'])
         return
 
-    CON.commit()
     await update.message.reply_text(STRINGS['winner_confirmation'] % {'username': username})
 
 winner_handler = CommandHandler(

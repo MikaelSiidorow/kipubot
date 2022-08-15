@@ -22,12 +22,9 @@ Using [pipenv](https://pipenv.pypa.io/en/latest/):
 2. Set `BOT_TOKEN` in .env
 3. Set `DATABASE_URL` in .env
 4. pipenv install --dev
-5. pipenv run init
-6. pipenv run dev
+5. pipenv run dev
 
 ### Docker
-
-(Requires that the database is initialized)
 
 1. docker build -t [image_name] .
 2. docker run -e "BOT_TOKEN=???" -e "DATABASE_URL=???" [image_name]

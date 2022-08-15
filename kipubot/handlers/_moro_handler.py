@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 import telegram.ext.filters as Filters
 from kipubot.constants import STRINGS
-from kipubot.utils import register_user
+from kipubot.db import register_user
 from kipubot.errors import AlreadyRegisteredError
 
 
