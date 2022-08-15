@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
 from telegram.ext import ApplicationBuilder, PicklePersistence
 from kipubot import BOT_TOKEN
 from kipubot.handlers import (start_handler, moro_handler, excel_file_handler,
@@ -10,8 +9,6 @@ from kipubot.handlers import (start_handler, moro_handler, excel_file_handler,
 
 
 def main() -> None:
-    if not os.path.exists('data'):
-        os.mkdir('data')
     persistence = PicklePersistence(filepath='data/.pkl')
     app = (
         ApplicationBuilder()

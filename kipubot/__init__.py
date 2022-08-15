@@ -29,6 +29,11 @@ if DATABASE_URL is None:
 # INITIALIZE DB AND CREATE TABLES IF THEY DON'T EXIST
 kipubot.db._init_db(DATABASE_URL)  # pylint: disable=protected-access
 
+# CHECK/CREATE DATA DIRECTORY
+if not os.path.exists('data'):
+    logging.info('Creating ./data/ directory...')
+    os.mkdir('data')
+
 __all__ = (
     'BOT_TOKEN',
     'DATABASE_URL',
