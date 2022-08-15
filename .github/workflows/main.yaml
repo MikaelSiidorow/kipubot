@@ -1,18 +1,16 @@
 name: heroku-deployment
 
 on:
-  workflow_run:
-    workflows:
-      - lint
-    types:
-      - completed
+  push:
     branches:
       - main
 
 jobs:
+  lint:
+    uses: ./.github/workflows/lint.yaml
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: [lint]
     steps:
       - uses: actions/checkout@v2
       - uses: akhileshns/heroku-deploy@v3.12.12
@@ -22,8 +20,3 @@ jobs:
           heroku_email: ${{secrets.HEROKU_EMAIL}}
           usedocker: true
           docker_heroku_process_type: worker
-  fail:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    steps:
-      - run: echo 'Linting failed! Not deploying...'
