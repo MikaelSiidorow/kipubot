@@ -1,37 +1,40 @@
 import os
 import sys
-import psycopg
+import logging
 from dotenv import load_dotenv
+import kipubot.db
 
 load_dotenv()
 
-# STORE DB CONNECTION
-_CON = None
+# LOGGING CONFIG
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+
 
 # ENV VARIABLES
 BOT_TOKEN = os.getenv('BOT_TOKEN', default=None)
 DATABASE_URL = os.getenv('DATABASE_URL', default=None)
 
 if BOT_TOKEN is None:
-    print('Bot token is not set!')
+    logging.error('Bot token is not set!')
     sys.exit(1)
 
 if DATABASE_URL is None:
-    print('Database URL is not set!')
+    logging.error('Database URL is not set!')
     sys.exit(1)
 
 
-def get_con():
-    global _CON  # pylint: disable=global-statement
+# INITIALIZE DB AND CREATE TABLES IF THEY DON'T EXIST
+kipubot.db._init_db(DATABASE_URL)  # pylint: disable=protected-access
 
-    if not _CON:
-        _CON = psycopg.connect(DATABASE_URL)
-
-    return _CON
-
+# CHECK/CREATE DATA DIRECTORY
+if not os.path.exists('data'):
+    logging.info('Creating ./data/ directory...')
+    os.mkdir('data')
 
 __all__ = (
-    'get_con',
     'BOT_TOKEN',
     'DATABASE_URL',
 )

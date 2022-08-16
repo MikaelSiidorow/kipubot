@@ -3,11 +3,9 @@ from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler
 import telegram.ext.filters as Filters
-from kipubot import get_con
 from kipubot.constants import EXCEL_MIME, STRINGS
-from kipubot.utils import get_chats_where_winner, validate_excel
-
-CON = get_con()
+from kipubot.utils import validate_excel
+from kipubot.db import get_chats_where_winner
 
 
 async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:

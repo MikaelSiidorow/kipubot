@@ -2,11 +2,9 @@ from telegram import Update
 from telegram.ext import ContextTypes, ChatMemberHandler
 from telegram.constants import ChatMemberStatus
 import psycopg.errors as PSErrors
-from kipubot import get_con
 from kipubot.constants import STRINGS
-from kipubot.utils import save_user_or_ignore
-
-CON = get_con()
+from kipubot.db import (save_chat_or_ignore,
+                        save_user_or_ignore, register_user_or_ignore)
 
 
 async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -23,28 +21,17 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         admin_ids = list(set([admin.user.id for admin in admins] + [user_id]))
 
         try:
-            CON.execute('''INSERT INTO chat (chat_id, title, admins)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (chat_id)
-                            DO NOTHING''',
-                        (chat_id, title, admin_ids))
+            save_chat_or_ignore(chat_id, title, admin_ids)
             save_user_or_ignore(user_id)
-
-            CON.execute('''INSERT INTO in_chat (user_id, chat_id)
-                            VALUES (%s, %s)
-                            ON CONFLICT (user_id, chat_id)
-                            DO NOTHING''',
-                        (user_id, chat_id))
+            register_user_or_ignore(chat_id, user_id)
 
         except PSErrors.IntegrityError as e:
             print('SQLite Error: ' + str(e))
-            CON.rollback()
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=STRINGS['unknown_error']
             )
         else:
-            CON.commit()
             # Kiitos pääsystä! -stigu
             await context.bot.send_sticker(
                 chat_id=chat_id,

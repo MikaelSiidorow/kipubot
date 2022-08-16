@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import logging
 from telegram.ext import ApplicationBuilder, PicklePersistence
 from kipubot import BOT_TOKEN
 from kipubot.handlers import (start_handler, moro_handler, excel_file_handler,
@@ -10,17 +8,7 @@ from kipubot.handlers import (start_handler, moro_handler, excel_file_handler,
                               expected_value_handler, raffle_setup_handler, no_dm_handler)
 
 
-# -- SETUP --
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-
-
 def main() -> None:
-    if not os.path.exists('data'):
-        #logging.info('No existing data...')
-        os.mkdir('data')
     persistence = PicklePersistence(filepath='data/.pkl')
     app = (
         ApplicationBuilder()
