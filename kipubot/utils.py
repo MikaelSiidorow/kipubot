@@ -59,7 +59,7 @@ def preband(x, xd, yd, p, func):
     return lpb, upb
 
 
-def fit_timedata(x_series: pd.Series, y_series: pd.Series):
+def fit_timedata(x_series: "pd.Series[np.int64]", y_series: "pd.Series[np.int64]"):  # pylint: disable=too-many-locals
     # ignore the end date in curve fitting
     x = x_series.values[:-1]
     y = y_series.values[:-1]
@@ -73,7 +73,13 @@ def fit_timedata(x_series: pd.Series, y_series: pd.Series):
     a, b = unc.correlated_values(popt, pcov)
 
     # calculate regression confidence interval
-    px = np.linspace(x_series[:1], x_series[-1:], y_series.size)
+
+    # if cur time later than raffle end date, use the end date
+    now = get_cur_time_hel().value
+    end = x_series[-2] if now >= x_series[-1] else x_series[-1]
+
+    px = np.linspace(x_series[0], end,
+                     y_series.size - 1, dtype=np.int64)
     py = a*px+b
     nom = unp.nominal_values(py)
     std = unp.std_devs(py)
