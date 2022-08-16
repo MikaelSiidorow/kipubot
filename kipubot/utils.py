@@ -26,7 +26,20 @@ class RaffleData(NamedTuple):
 
 
 def int_price_to_str(num: int) -> str:
-    return re.sub(r'\.0', '', str(num/100.0))
+    num = num / 100.0
+
+    str_num: str = format(num, '.2f') if num >= 0 else \
+        '-' + format(-num, '.2f')
+
+    euros, cents = str_num.split('.')
+
+    if cents == '00':
+        return euros
+
+    if cents[1] == '0':
+        return euros + '.' + cents[0]
+
+    return str_num
 
 
 def preband(x, xd, yd, p, func):
