@@ -5,7 +5,8 @@ from telegram.ext import ApplicationBuilder, PicklePersistence
 from kipubot import BOT_TOKEN
 from kipubot.handlers import (start_handler, moro_handler, excel_file_handler,
                               bot_added_handler, winner_handler, graph_handler,
-                              expected_value_handler, raffle_setup_handler, no_dm_handler)
+                              expected_value_handler, raffle_setup_handler, no_dm_handler,
+                              error_handler)
 
 
 def main() -> None:
@@ -37,7 +38,7 @@ def main() -> None:
     # start conversation after selecting channel from excel file
     app.add_handler(raffle_setup_handler)
 
-    # test handler for all messages
-    # app.add_handler(MessageHandler(Filters.ALL | Filters.Sticker.ALL, tester))
+    # add error handler
+    app.add_error_handler(error_handler)
 
     app.run_polling()
