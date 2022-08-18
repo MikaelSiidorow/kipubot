@@ -16,6 +16,7 @@ logging.basicConfig(
 # ENV VARIABLES
 BOT_TOKEN = os.getenv('BOT_TOKEN', default=None)
 DATABASE_URL = os.getenv('DATABASE_URL', default=None)
+DEVELOPER_CHAT_ID = os.getenv('DEVELOPER_CHAT_ID', default=None)
 
 if BOT_TOKEN is None:
     logging.error('Bot token is not set!')
@@ -24,6 +25,9 @@ if BOT_TOKEN is None:
 if DATABASE_URL is None:
     logging.error('Database URL is not set!')
     sys.exit(1)
+
+if DEVELOPER_CHAT_ID is None:
+    logging.warning('Developer chat ID is not set!')
 
 
 # INITIALIZE DB AND CREATE TABLES IF THEY DON'T EXIST
@@ -37,4 +41,5 @@ if not os.path.exists('data'):
 __all__ = (
     'BOT_TOKEN',
     'DATABASE_URL',
+    'DEVELOPER_CHAT_ID'
 )
