@@ -14,7 +14,6 @@ def main() -> None:
         ApplicationBuilder()
         .token(BOT_TOKEN)
         .persistence(persistence)
-        .arbitrary_callback_data(True)
         .build()
     )
 

@@ -1,81 +1,296 @@
 import os
-from typing import Optional
+from typing import Optional, Union
 import pandas as pd
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ContextTypes, ConversationHandler, MessageHandler,
-    CallbackQueryHandler, CommandHandler, InvalidCallbackData)
-import telegram.ext.filters as Filters
+from telegram.ext import ConversationHandler, CallbackQueryHandler, CallbackContext
 from kipubot.constants import STRINGS
-from kipubot.utils import get_raffle, save_raffle, read_excel_to_df
+from kipubot.utils import (get_raffle, save_raffle, read_excel_to_df, is_int,
+                           is_float, get_cur_time_hel, int_price_to_str)
 from kipubot.errors import NoRaffleError
 
+# ==================
+# = UTIL FUNCTIONS =
+# ==================
 
-async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
+# CLEAR FUNCTIONS
+# ----------------
+
+
+async def cancel_convo(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    if query.data == 'cancel':
-        await query.message.edit_text(STRINGS['cancelled'])
-        context.user_data.clear()
-        return ConversationHandler.END
+    await query.message.edit_text(STRINGS['cancelled'], reply_markup=None)
+    context.user_data.clear()
+    return ConversationHandler.END
 
-    if (isinstance(query.data, InvalidCallbackData) or
-            len(query.data) != 2 or
-            not isinstance(query.data[0], int) or
-            not isinstance(query.data[1], str)):
 
-        await query.message.edit_text(STRINGS['unknown_error'])
-        return ConversationHandler.END
+async def convo_error(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    await query.message.edit_text(STRINGS['unknown_error'], reply_markup=None)
+    context.user_data.clear()
+    return ConversationHandler.END
 
-    chat_id = query.data[0]
-    chat_title = query.data[1]
 
-    context.user_data['raffle_chat_id'] = chat_id
-    context.user_data['raffle_chat_title'] = chat_title
+async def convo_timeout(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    await query.message.edit_text(STRINGS['timed_out'], reply_markup=None)
+    context.user_data.clear()
+    return ConversationHandler.END
 
-    try:
-        get_raffle(chat_id)
+# KEYBOARD COMPONENTS
+# --------------------
 
+
+def raffle_keyboard(has_existing: bool = False) -> InlineKeyboardMarkup:
+    if has_existing:
         keyboard = [
             [InlineKeyboardButton(
-                STRINGS['new_raffle_button'], callback_data='raffle:new_raffle')],
+                STRINGS['new_raffle_button'], callback_data='raffle:setup:new')],
             [InlineKeyboardButton(
-                STRINGS['update_raffle_button'], callback_data='raffle:use_existing')],
+                STRINGS['update_raffle_button'], callback_data='raffle:setup:old')],
             [InlineKeyboardButton(
                 STRINGS['cancel_button'],
-                callback_data='cancel')]
+                callback_data='raffle:cancel')]
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        return InlineKeyboardMarkup(keyboard)
 
-        await query.message.edit_text(STRINGS['update_or_new_raffle'] % {'chat_title': chat_title})
-        await query.message.edit_reply_markup(reply_markup)
-
-    except NoRaffleError:
-        keyboard = [
-            [InlineKeyboardButton(
-                STRINGS['new_raffle_button'], callback_data='raffle:new_raffle')],
-            [InlineKeyboardButton(
-                STRINGS['cancel_button'], callback_data='cancel')],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await query.message.edit_text(STRINGS['new_raffle_text'] % {'chat_title': chat_title})
-        await query.message.edit_reply_markup(reply_markup)
-
-    return 'ask_date'
+    keyboard = [
+        [InlineKeyboardButton(
+            STRINGS['new_raffle_button'], callback_data='raffle:setup:new')],
+        [InlineKeyboardButton(
+            STRINGS['cancel_button'], callback_data='raffle:cancel')],
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 
-async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
+def date_keyboard(which: str) -> InlineKeyboardMarkup:
+    if which not in ['start', 'end']:
+        raise Exception('Invalid date type, should be start or end!')
+
+    rough_controls = [
+        InlineKeyboardButton(
+            '-1 d', callback_data=f'raffle:date:{which}:update:-24'),
+        InlineKeyboardButton(
+            '-12 h', callback_data=f'raffle:date:{which}:update:-12'),
+        InlineKeyboardButton(
+            '-6 h', callback_data=f'raffle:date:{which}:update:-6'),
+        InlineKeyboardButton('+6 h',
+                             callback_data=f'raffle:date:{which}:update:+6'),
+        InlineKeyboardButton('+12 h',
+                             callback_data=f'raffle:date:{which}:update:+12'),
+        InlineKeyboardButton('+1 d',
+                             callback_data=f'raffle:date:{which}:update:+24'),
+    ]
+
+    smooth_controls = [
+        InlineKeyboardButton(
+            '-1 h', callback_data=f'raffle:date:{which}:update:-1'),
+        InlineKeyboardButton('-30 m',
+                             callback_data=f'raffle:date:{which}:update:-0.5'),
+        InlineKeyboardButton(
+            '-15 m', callback_data=f'raffle:date:{which}:update:-0.25'),
+        InlineKeyboardButton('+15 m',
+                             callback_data=f'raffle:date:{which}:update:+0.25'),
+        InlineKeyboardButton('+30 m',
+                             callback_data=f'raffle:date:{which}:update:+0.5'),
+        InlineKeyboardButton('+1 h',
+                             callback_data=f'raffle:date:{which}:update:+1'),
+    ]
+
+    keyboard = [
+        rough_controls,
+        smooth_controls,
+        [InlineKeyboardButton(STRINGS['confirm_button'],
+                              callback_data=f'raffle:date:{which}:confirmed')],
+        [InlineKeyboardButton(
+            STRINGS['cancel_button'], callback_data='raffle:cancel')]
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+def fee_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                '-1', callback_data='raffle:fee:update:-100'),
+            InlineKeyboardButton('-0.5',
+                                 callback_data='raffle:fee:update:-50'),
+            InlineKeyboardButton('+0.5',
+                                 callback_data='raffle:fee:update:+50'),
+            InlineKeyboardButton('+1',
+                                 callback_data='raffle:fee:update:+100'),
+        ],
+        [InlineKeyboardButton(STRINGS['finish_raffle_button'],
+                              callback_data='raffle:fee:confirmed')],
+        [InlineKeyboardButton(
+            STRINGS['cancel_button'], callback_data='raffle:cancel')],
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+# =================
+# = MAIN HANDLERS =
+# =================
+
+
+async def setup_raffle(update: Update, context: CallbackContext) -> Union[str, int]:
     query = update.callback_query
-    chat_title = context.user_data['raffle_chat_title']
 
-    if query.data == 'cancel':
-        await query.message.edit_text(STRINGS['cancelled'])
-        context.user_data.clear()
-        return ConversationHandler.END
+    if query.data == 'raffle:cancel':
+        return await cancel_convo(update, context)
 
-    command = query.data.split(':')[1]
+    if (query.data.startswith('raffle:chat_selected') and
+            len(query.data.split(':')) == 4 and
+            is_int(query.data.split(':')[2])):
+        args = query.data.split(':')
 
-    if command == 'use_existing':
+        chat_id = int(args[2])
+        chat_title = args[3]
+
+        # store selected chat in user_data
+        context.user_data['raffle_chat_id'] = chat_id
+        context.user_data['raffle_chat_title'] = chat_title
+
+        try:
+            get_raffle(chat_id)
+
+            msg = (STRINGS['raffle_setup_base'] + STRINGS['raffle_setup_update_or_new']) % {
+                'chat_title': chat_title}
+
+            await query.message.edit_text(msg, reply_markup=raffle_keyboard(has_existing=True))
+
+        except NoRaffleError:
+            msg = (STRINGS['raffle_setup_base'] + STRINGS['raffle_setup_new']) % {
+                'chat_title': chat_title}
+
+            await query.message.edit_text(msg, reply_markup=raffle_keyboard())
+
+        return 'raffle_setup_state:update_or_new'
+
+    # If nothing matches, return error
+    return await convo_error(update, context)
+
+
+async def setup_start_date(update: Update, context: CallbackContext) -> Optional[str]:
+    query = update.callback_query
+
+    if query.data == 'raffle:setup:new':
+        context.user_data['raffle_start_date'] = get_cur_time_hel().floor(
+            freq="15T")
+
+    if (query.data.startswith('raffle:date:start:update') and
+            len(query.data.split(':')) == 5 and
+            is_float(query.data.split(':')[4])):
+
+        diff = float(query.data.split(':')[4])
+        old_date = context.user_data['raffle_start_date']
+        new_date = old_date + pd.Timedelta(diff, unit='h')
+
+        context.user_data['raffle_start_date'] = new_date
+
+    if (query.data == 'raffle:setup:new' or
+            query.data.startswith('raffle:date:start:update')):
+        chat_title = context.user_data['raffle_chat_title']
+        start_date = context.user_data['raffle_start_date']
+
+        msg = (STRINGS['raffle_setup_base'] + STRINGS['raffle_setup_start_date']) % {
+            'chat_title': chat_title, 'start_date': start_date}
+
+        await query.message.edit_text(msg, reply_markup=date_keyboard('start'))
+
+        return 'raffle_setup_state:start_date'
+
+    return None
+
+
+async def setup_end_date(update: Update, context: CallbackContext) -> Optional[str]:
+    query = update.callback_query
+
+    if query.data == 'raffle:date:start:confirmed':
+        context.user_data['raffle_end_date'] = context.user_data['raffle_start_date']
+
+    if (query.data.startswith('raffle:date:end:update') and
+            len(query.data.split(':')) == 5 and
+            is_float(query.data.split(':')[4])):
+
+        diff = float(query.data.split(':')[4])
+        old_date = context.user_data['raffle_end_date']
+        new_date = old_date + pd.Timedelta(diff, unit='h')
+
+        context.user_data['raffle_end_date'] = new_date
+
+    if (query.data == 'raffle:date:start:confirmed' or
+            query.data.startswith('raffle:date:end:update')):
+        chat_title = context.user_data['raffle_chat_title']
+        start_date = context.user_data['raffle_start_date']
+        end_date = context.user_data['raffle_end_date']
+
+        msg = (STRINGS['raffle_setup_base'] + STRINGS['raffle_setup_start_date'] +
+               STRINGS['raffle_setup_end_date'])
+
+        if end_date < start_date:
+            context.user_data['raffle_end_date'] = start_date
+            end_date = start_date
+            msg += STRINGS['end_date_before_start']
+
+        msg = msg % {'chat_title': chat_title,
+                     'start_date': start_date, 'end_date': end_date}
+
+        if query.message.text != msg:
+            await query.message.edit_text(msg, reply_markup=date_keyboard('end'))
+
+        return 'raffle_setup_state:end_date'
+
+    return None
+
+
+async def setup_fee(update: Update, context: CallbackContext) -> Optional[str]:
+    query = update.callback_query
+
+    if query.data == 'raffle:date:end:confirmed':
+        context.user_data['raffle_fee'] = 100
+
+    if (query.data.startswith('raffle:fee:update') and
+            len(query.data.split(':')) == 4 and
+            is_int(query.data.split(':')[3])):
+
+        diff = int(query.data.split(':')[3])
+        old_fee = context.user_data['raffle_fee']
+        new_fee = old_fee + diff
+
+        context.user_data['raffle_fee'] = new_fee
+
+    if (query.data == 'raffle:date:end:confirmed' or query.data.startswith('raffle:fee:update')):
+        chat_title = context.user_data['raffle_chat_title']
+        start_date = context.user_data['raffle_start_date']
+        end_date = context.user_data['raffle_end_date']
+        fee = context.user_data['raffle_fee']
+
+        msg = (STRINGS['raffle_setup_base'] + STRINGS['raffle_setup_start_date'] +
+               STRINGS['raffle_setup_end_date'] + STRINGS['raffle_setup_fee'])
+
+        if fee < 0:
+            context.user_data['raffle_fee'] = 0
+            msg += STRINGS['negative_fee']
+
+        msg = msg % {'chat_title': chat_title, 'start_date': start_date,
+                     'end_date': end_date, 'fee': int_price_to_str(fee)}
+
+        if query.message.text != msg:
+            await query.message.edit_text(msg, reply_markup=fee_keyboard())
+
+        return 'raffle_setup_state:fee'
+
+    return None
+
+
+async def finish_setup(update: Update, context: CallbackContext) -> Optional[int]:
+    query = update.callback_query
+    dm_id = update.effective_chat.id
+
+    if query.data == 'raffle:setup:old':
+        chat_title = context.user_data['raffle_chat_title']
         chat_id = context.user_data['raffle_chat_id']
         dm_id = update.effective_chat.id
 
@@ -94,164 +309,78 @@ async def ask_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Option
 
         return ConversationHandler.END
 
-    await query.message.edit_text(STRINGS['raffle_dates_prompt'])
+    if query.data == 'raffle:fee:confirmed':
+        chat_title = context.user_data['raffle_chat_title']
+        chat_id = context.user_data['raffle_chat_id']
+        start_date = context.user_data['raffle_start_date']
+        end_date = context.user_data['raffle_end_date']
+        fee = context.user_data['raffle_fee']
 
-    return 'get_date'
+        excel_path = f'data/{dm_id}/data.xlsx'
+        df = read_excel_to_df(excel_path, start_date, end_date)
+        save_raffle(chat_id, start_date, end_date, fee, df)
 
+        msg = (STRINGS['raffle_setup_base'] + STRINGS['raffle_setup_start_date'] +
+               STRINGS['raffle_setup_end_date'] + STRINGS['raffle_setup_fee'] +
+               STRINGS['raffle_confirmation']) % {
+            'chat_title': chat_title,
+            'start_date': start_date,
+            'end_date': end_date,
+            'fee': int_price_to_str(fee)}
 
-async def invalid_date(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
-    await update.message.reply_text(STRINGS['invalid_date'])
+        await query.message.edit_text(msg, reply_markup=None)
+        await context.bot.send_message(chat_id, STRINGS['raffle_created_chat']
+                                       % {'username': update.effective_user.username})
 
-    return 'get_date'
-
-
-async def get_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    start_date, end_date = update.message.text.split("\n")
-
-    if not pd.Timestamp(end_date) > pd.Timestamp(start_date):
-        await update.message.reply_text(STRINGS['end_date_before_start'])
-
-        return 'get_date'
-
-    context.user_data['raffle_start_date'] = start_date
-    context.user_data['raffle_end_date'] = end_date
-
-    keyboard = [
-        [InlineKeyboardButton(STRINGS['set_fee_button'],
-                              callback_data='fee:continue')],
-        [InlineKeyboardButton(STRINGS['default_fee_button'],
-                              callback_data='fee:default')],
-        [InlineKeyboardButton(STRINGS['cancel_button'],
-                              callback_data='cancel')]
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(f'Start date set to {start_date}!\n' +
-                                    f'End date set to {end_date}!', reply_markup=reply_markup)
-
-    return 'ask_fee'
-
-
-async def ask_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
-    query = update.callback_query
-
-    if query.data == 'cancel':
-        await query.message.edit_text(STRINGS['cancelled'])
+        # perform cleanup
         context.user_data.clear()
+        os.remove(excel_path)
+
         return ConversationHandler.END
 
-    if query.data == 'fee:default':
-        context.user_data['raffle_entry_fee'] = 100
-        keyboard = [
-            [InlineKeyboardButton(
-                STRINGS['finish_raffle_button'], callback_data='finish')],
-            [InlineKeyboardButton(STRINGS['cancel_button'],
-                                  callback_data='cancel')]
-        ]
-
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await query.message.edit_text(
-            STRINGS['default_fee_confirmation'],
-            reply_markup=reply_markup)
-
-        return 'finish_setup'
-
-    await query.message.edit_text(STRINGS['raffle_fee_prompt'])
-
-    return 'get_fee'
-
-
-async def invalid_fee(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> str:
-    await update.message.reply_text(STRINGS['invalid_fee'])
-
-    return 'get_fee'
-
-
-async def get_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    fee = update.message.text
-    context.user_data['raffle_entry_fee'] = int(float(fee) * 100)
-
-    keyboard = [
-        [InlineKeyboardButton(
-            STRINGS['finish_raffle_button'], callback_data='finish')],
-        [InlineKeyboardButton(STRINGS['cancel_button'],
-                              callback_data='cancel')]
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(STRINGS['fee_confirmation'] % (fee), reply_markup=reply_markup)
-
-    return 'finish_setup'
-
-
-async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
-    query = update.callback_query
-    dm_id = update.effective_chat.id
-
-    if query.data == 'cancel':
-        await query.message.edit_text(STRINGS['cancelled'])
-        context.user_data.clear()
-        return ConversationHandler.END
-
-    chat_title = context.user_data['raffle_chat_title']
-    chat_id = context.user_data['raffle_chat_id']
-    start_date = context.user_data['raffle_start_date'] + ':00'
-    end_date = context.user_data['raffle_end_date'] + ':00'
-    entry_fee = context.user_data['raffle_entry_fee']
-
-    excel_path = f'data/{dm_id}/data.xlsx'
-    df = read_excel_to_df(excel_path, start_date, end_date)
-    save_raffle(chat_id, start_date, end_date, entry_fee, df)
-
-    await query.message.edit_text(STRINGS['raffle_confirmation'] % {'chat_title': chat_title})
-    await context.bot.send_message(chat_id, STRINGS['raffle_created_chat']
-                                   % {'username': update.effective_user.username})
-
-    # perform cleanup
-    context.user_data.clear()
-    os.remove(excel_path)
-
-    return ConversationHandler.END
-
-
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    context.user_data.clear()
-    await update.message.reply_text(STRINGS['cancelled'])
-    return ConversationHandler.END
-
-
-async def timeout(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.message.edit_text(STRINGS['timed_out'])
-
-# YYYY-MM-DD HH:mm regex
-TWO_LINE_DATE_FILTER = Filters.Regex(
-    r'^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[1-2]\d|3[0-2])\s([0-1]\d|2[0-3]):([0-5]\d)\n' +
-    r'(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[1-2]\d|3[0-2])\s([0-1]\d|2[0-3]):([0-5]\d)$')
-
-PRICE_FILTER = Filters.Regex(r'^(([1-9]\d|[1-9])(.\d)?)|(0.[1-9]\d?)$')
+    return None
 
 raffle_setup_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(setup_raffle)],
+    entry_points=[CallbackQueryHandler(setup_raffle, pattern='^raffle:.*$')],
     states={
-        'ask_date': [CallbackQueryHandler(ask_date)],
-        'get_date': [
-            MessageHandler(TWO_LINE_DATE_FILTER, get_date),
-            MessageHandler(Filters.ALL & ~Filters.COMMAND, invalid_date),
-            CommandHandler('cancel', cancel)
+        'raffle_setup_state:update_or_new': [
+            CallbackQueryHandler(
+                setup_start_date,
+                pattern='^raffle:setup:new$'),
+            CallbackQueryHandler(
+                finish_setup,
+                pattern='^raffle:setup:old$')],
+        'raffle_setup_state:start_date': [
+            CallbackQueryHandler(
+                setup_start_date,
+                pattern='^raffle:date:start:update.*$'),
+            CallbackQueryHandler(
+                setup_end_date,
+                pattern='^raffle:date:start:confirmed$')
         ],
-        'ask_fee': [CallbackQueryHandler(ask_fee)],
-        'get_fee': [
-            MessageHandler(PRICE_FILTER, get_fee),
-            MessageHandler(Filters.ALL & ~Filters.COMMAND, invalid_fee),
-            CommandHandler('cancel', cancel)
+        'raffle_setup_state:end_date': [
+            CallbackQueryHandler(
+                setup_end_date,
+                pattern='^raffle:date:end:update.*$'),
+            CallbackQueryHandler(
+                setup_fee,
+                pattern='^raffle:date:end:confirmed$')
         ],
-        'finish_setup': [CallbackQueryHandler(finish_setup)],
-        ConversationHandler.TIMEOUT: [CallbackQueryHandler(timeout)]
+        'raffle_setup_state:fee': [
+            CallbackQueryHandler(
+                setup_fee,
+                pattern='^raffle:fee:update.*$'),
+            CallbackQueryHandler(
+                finish_setup,
+                pattern='^raffle:fee:confirmed$')
+        ],
+        ConversationHandler.TIMEOUT: [CallbackQueryHandler(convo_timeout)]
     },
     fallbacks=[CallbackQueryHandler(setup_raffle)],
-    conversation_timeout=120
+    conversation_timeout=120,
+    name='raffle_setup',
+    persistent=True,
+    per_message=True
+
+
 )

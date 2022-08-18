@@ -39,12 +39,12 @@ async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Opti
     for chat_id, chat_title in chats:
         chat_buttons.append(InlineKeyboardButton(
             STRINGS['chat_button'] % {'chat_title': chat_title},
-            callback_data=[chat_id, chat_title]))
+            callback_data=f'raffle:chat_selected:{chat_id}:{chat_title}'))
 
     keyboard = [
         chat_buttons,
         [InlineKeyboardButton(STRINGS['cancel_button'],
-                              callback_data='cancel')]
+                              callback_data='raffle:cancel')]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
