@@ -14,7 +14,12 @@ Add the bot on [Telegram](https://t.me/NoPainNoGraphbot) into your group and enj
 
 ## Developing KipuBot
 
-### Basic
+### Docker (Recommended)
+
+1. Set `PYTHONPATH=${PYTHONPATH}:kipubot` in .env
+2. Set `BOT_TOKEN` in .env
+3. `docker-compose -f docker-compose.dev.yml up`
+### Pipenv
 
 Using [pipenv](https://pipenv.pypa.io/en/latest/):
 
@@ -23,8 +28,3 @@ Using [pipenv](https://pipenv.pypa.io/en/latest/):
 3. Set `DATABASE_URL` in .env
 4. pipenv install --dev
 5. pipenv run dev
-
-### Docker
-
-1. docker build -t [image_name] .
-2. docker run -e "BOT_TOKEN=???" -e "DATABASE_URL=???" [image_name]
