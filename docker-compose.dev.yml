@@ -1,0 +1,20 @@
+version: "3.8"
+services:
+  database:
+    image: postgres
+    environment:
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+  kipubot:
+    image: kipubot-dev
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    volumes:
+      - ./kipubot:/bot/kipubot
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://username:password@database:5432
+    depends_on:
+      - database
