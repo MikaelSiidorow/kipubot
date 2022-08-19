@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 from kipubot import DEVELOPER_CHAT_ID
+from kipubot.constants import STRINGS
 
 _logger = logging.getLogger(__name__)
 
@@ -37,4 +38,8 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Finally, send the message
     await context.bot.send_message(
         chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML
+    )
+    # Also send a message to the user who triggered the error.
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text=STRINGS['server_error']
     )
