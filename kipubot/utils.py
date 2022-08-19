@@ -22,6 +22,22 @@ class RaffleData(NamedTuple):
     df: Optional[pd.DataFrame]
 
 
+def is_int(x: str) -> bool:
+    try:
+        int(x)
+        return True
+    except ValueError:
+        return False
+
+
+def is_float(x: str) -> bool:
+    try:
+        float(x)
+        return True
+    except ValueError:
+        return False
+
+
 def int_price_to_str(num: int) -> str:
     num = num / 100.0
 

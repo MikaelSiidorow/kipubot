@@ -22,31 +22,21 @@ STRINGS = {
     'invalid_file': 'Invalid Excel file! ❌\n\n/start for instructions',
     'new_raffle_button': '🆕 Create a new raffle!',
     'update_raffle_button': '🔄 Update existing raffle!',
-    'update_or_new_raffle': ('Selected %(chat_title)s!\n' +
-                             'Found existing raffle.\n' +
-                             'Do you want update it or create a new one?'),
-    'new_raffle_text': ('Selected %(chat_title)s! \n' +
-                        'No existing raffle found. ' +
-                        'Do you want to create a new one?'),
+    'raffle_setup_base': ('📝 Raffle setup for %(chat_title)s\n' +
+                          '=============================\n\n'),
+    'raffle_setup_update_or_new': ('Found existing raffle.\n' +
+                                   'Do you want update it or create a new one?'),
+    'raffle_setup_new': ('No existing raffle found.\n' +
+                         'Do you want to create a new one?'),
     'updated_raffle': 'Updated raffle data in %(chat_title)s! 🔄',
-    'raffle_dates_prompt': ('Send the start and end date of the raffle!\n\n' +
-                            'Format (start and end date on separate lines): \n' +
-                            'YYYY-MM-DD HH:MM\n' +
-                            'YYYY-MM-DD HH:MM\n\n' +
-                            '/cancel to cancel'),
+    'raffle_setup_start_date': 'Start date set to %(start_date)s!\n',
+    'raffle_setup_end_date': 'End date set to %(end_date)s!\n\n',
+    'raffle_setup_fee': 'Fee set to %(fee)s €!\n\n',
     'end_date_before_start': 'End date cannot be before start date! ❌',
-    'invalid_date': 'Invalid date! ❌',
-    'set_fee_button': '#️⃣ Set fee',
-    'default_fee_button': '1️⃣ Use default (1€)',
+    'negative_fee': 'Fee cannot be negative! ❌',
+    'confirm_button': '✔️ Confirm',
     'finish_raffle_button': '✔️ Finish raffle',
-    'default_fee_confirmation': 'Fee set to 1€!',
-    'fee_confirmation': 'Fee set to %s€!',
-    'raffle_fee_prompt': ('Send the entry fee to the raffle!\n\n' +
-                          'Example inputs: \n' +
-                          '0.50, 1.5, 2\n\n' +
-                          '/cancel to cancel'),
-    'invalid_fee': 'Invalid fee! ❌',
-    'raffle_confirmation': 'New raffle setup in %(chat_title)s! ✔️',
+    'raffle_confirmation': 'Succesfully setup new raffle in %(chat_title)s! ✔️',
     'raffle_created_chat': 'New raffle created by @%(username)s! ✔️',
     'raffle_updated_chat': 'Raffle updated by @%(username)s! ✔️',
     'timed_out': 'Timed out! 🕐',
