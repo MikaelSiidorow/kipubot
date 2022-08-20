@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
-# import pytest
-
-from kipubot.utils import int_price_to_str, remove_emojis
+import pytest
+from datetime import datetime
+from db import delete_chat, delete_raffle_data, save_chat_or_ignore, _init_db
+from kipubot import DATABASE_URL
+from pandas.testing import assert_frame_equal
+from kipubot.utils import get_raffle, int_price_to_str, remove_emojis, read_excel_to_df, save_raffle
 
 
 class TestUtils:
@@ -33,3 +36,30 @@ class TestUtils:
             'text with emoji at the end💩') == 'text with emoji at the end '
         assert remove_emojis(
             '💩text with emoji💩at the start, middle and end💩') == ' text with emoji at the start, middle and end '
+
+class TestGraphSave:
+        
+    @pytest.fixture(autouse=True)
+    def create_chat(self):
+        _init_db(DATABASE_URL)
+        save_chat_or_ignore(1, "testing", [1])
+        yield 1
+        delete_chat(1)
+
+
+    def test_graph_save(self):
+        file_path = "tests/example_data/example_1.xlsx"
+        start_date = datetime.fromisoformat("2022-08-01 03:15:00")
+        end_date = datetime.fromisoformat("2022-08-12 03:15:00")
+        entry_fee = 1
+        df = read_excel_to_df(file_path, start_date, end_date)
+        save_raffle(1, start_date, end_date, entry_fee, df)
+        raffle_from_db = get_raffle(1, True)
+        delete_raffle_data(1)
+        assert (start_date == raffle_from_db.start_date)
+        assert (end_date == raffle_from_db.end_date)
+        assert (entry_fee == raffle_from_db.entry_fee)
+
+        # behavior that get_raffle returns without index and read returns with probably should be changed.
+        df.set_index('date',inplace=True)
+        assert_frame_equal(df,raffle_from_db.df)
