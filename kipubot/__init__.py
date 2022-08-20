@@ -17,8 +17,8 @@ logging.basicConfig(
 BOT_TOKEN = os.getenv('BOT_TOKEN', default=None)
 DATABASE_URL = os.getenv('DATABASE_URL', default=None)
 DEVELOPER_CHAT_ID = os.getenv('DEVELOPER_CHAT_ID', default=None)
-
-if BOT_TOKEN is None:
+MODE = os.getenv('MODE', default=None)
+if BOT_TOKEN is None and MODE != "TEST":
     logging.error('Bot token is not set!')
     sys.exit(1)
 

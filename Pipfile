@@ -8,6 +8,7 @@ start = "python3 -m kipubot"
 dev = "watchfiles 'python3 -m kipubot' kipubot"
 lint = "pylint kipubot"
 test = "pytest"
+test_hot = "watchfiles 'pytest' kipubot tests"
 
 [packages]
 pandas = "*"
