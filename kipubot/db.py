@@ -125,6 +125,11 @@ def save_raffle_data(chat_id: int,
     _CON.commit()
 
 
+def delete_raffle_data(chat_id: int):
+    _CON.execute('''DELETE FROM raffle where chat_id=%s''', (chat_id,))
+    _CON.commit()
+
+
 def save_user_or_ignore(user_id: int) -> None:
     _CON.execute('''INSERT INTO chat_user
                 VALUES (%s)
@@ -142,6 +147,12 @@ def save_chat_or_ignore(chat_id: int, title: str, admin_ids: List[int]) -> None:
                             DO NOTHING''',
                  (chat_id, title, admin_ids))
     _CON.commit()
+
+
+def delete_chat(chat_id: int):
+    _CON.execute('''DELETE FROM chat where chat_id=%s''', (chat_id,))
+    _CON.commit()
+
 
 
 def register_user(chat_id: int, user_id: int) -> None:
