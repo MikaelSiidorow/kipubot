@@ -8,6 +8,7 @@ from kipubot.db import (admin_cycle_winners, cycle_winners,
                         get_registered_member_ids,
                         get_admin_ids, get_prev_winner_ids,
                         get_winner_id, replace_cur_winner)
+from kipubot.utils import get_chat_member_opt
 
 
 async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -37,8 +38,10 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
         registered_member_ids = get_registered_member_ids(chat_id)
-        registered_members = [await update.effective_chat.get_member(id)
+        registered_members = [await get_chat_member_opt(update.effective_chat, id)
                               for id in registered_member_ids]
+        # drop None values
+        registered_members = [m for m in registered_members if m]
         supposed_winner = [
             member for member in registered_members if member.user.username == username]
 
