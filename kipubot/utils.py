@@ -11,6 +11,8 @@ from scipy import stats
 from scipy.optimize import curve_fit
 import uncertainties as unc
 import uncertainties.unumpy as unp
+from telegram import ChatMember, Chat
+from telegram.error import BadRequest
 from kipubot.errors import NoRaffleError
 from kipubot import db
 
@@ -53,6 +55,15 @@ def int_price_to_str(num: int) -> str:
         return euros + '.' + cents[0]
 
     return str_num
+
+
+async def get_chat_member_opt(chat: Chat, member_id: int) -> Optional[ChatMember]:
+    try:
+        return await chat.get_member(member_id)
+    except BadRequest as e:
+        if e.message == 'User not found':
+            return None
+        raise e
 
 
 def preband(x, xd, yd, p, func):
