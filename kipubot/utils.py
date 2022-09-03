@@ -266,11 +266,12 @@ def generate_graph(out_img_path: str,
 
     # -- style graph --
     pred_max_pool = (nom+1.96*std)[-1]
-    plt.ylim(0, pred_max_pool)
+    pool_total = df['amount'].max()
+    plt.ylim(0, max(pred_max_pool, pool_total))
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
 
     plt.title(str(remove_emojis(chat_title).strip()) + "\n" +
-              f"Entries {df['unique'].max()} | Pool {int_price_to_str(df['amount'].max())} €")
+              f"Entries {df['unique'].max()} | Pool {int_price_to_str(pool_total)} €")
     plt.xlabel(None)
     plt.ylabel('Pool (€)')
 
