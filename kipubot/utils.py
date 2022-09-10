@@ -295,8 +295,8 @@ def generate_expected(out_img_path: str,
         ax=ax, marker='o', style='r', label='Expected Value')
 
     # -- style graph --
-    plt.ylim(int(int_price_to_str((df['next_expected'].min() - 100) * 110)),
-             int(int_price_to_str((df['next_expected'].max() + 100) * 110)))
+    plt.ylim(float(int_price_to_str((df['next_expected'].min() - 100) * 110)),
+             float(int_price_to_str((df['next_expected'].max() + 100) * 110)))
     plt.xlim((pd.to_datetime(start_date), pd.to_datetime(get_cur_time_hel())))
 
     plt.title(str(remove_emojis(chat_title).strip()) +
