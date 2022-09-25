@@ -10,6 +10,7 @@ services:
     build:
       context: .
       dockerfile: dev.Dockerfile
+    restart: on-failure
     volumes:
       - ./kipubot:/bot/kipubot
     env_file:
