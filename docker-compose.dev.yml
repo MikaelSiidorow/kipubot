@@ -10,11 +10,14 @@ services:
     build:
       context: .
       dockerfile: dev.Dockerfile
+    restart: on-failure
     volumes:
-      - ./kipubot:/bot/kipubot
+      - kipubot_db:/bot/kipubot
     env_file:
       - .env
     environment:
       - DATABASE_URL=postgresql://username:password@database:5432
     depends_on:
       - database
+volumes:
+  kipubot_db:
