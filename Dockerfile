@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.8 as base
+FROM python:3.8-slim-buster as base
 
 # Setup ENV variables here (if needed in the future)
 
@@ -15,8 +15,11 @@ COPY Pipfile.lock .
 RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
 
 
-FROM base as runtime
-
+FROM base
+# install postgres driver
+RUN apt update && \
+    apt install libpq-dev -y && \
+    rm -rf /var/lib/apt/lists/*
 # Copy virtual env from python-deps stage
 COPY --from=python-deps /.venv /.venv
 ENV PATH="/.venv/bin:$PATH"
