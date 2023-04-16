@@ -16,11 +16,13 @@ async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         register_user(chat_id, user_id)
 
     except AlreadyRegisteredError:
-        await update.message.reply_text(STRINGS['double_moro'] %
-                                        {'username': username, 'chat_title': chat})
+        await update.message.reply_text(
+            STRINGS["double_moro"] % {"username": username, "chat_title": chat}
+        )
     else:
-        await update.message.reply_text(STRINGS['moro'] %
-                                        {'username': username, 'chat_title': chat})
+        await update.message.reply_text(
+            STRINGS["moro"] % {"username": username, "chat_title": chat}
+        )
 
-moro_handler = CommandHandler(
-    ['moro', 'hello'], hello, ~Filters.ChatType.PRIVATE)
+
+moro_handler = CommandHandler(["moro", "hello"], hello, ~Filters.ChatType.PRIVATE)

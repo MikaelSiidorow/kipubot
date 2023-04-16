@@ -8,7 +8,7 @@ __all__ = (
     "expected_value_handler",
     "raffle_setup_handler",
     "no_dm_handler",
-    "error_handler"
+    "error_handler",
 )
 
 from ._raffle_setup_handler import raffle_setup_handler

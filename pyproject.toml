@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "kipubot"
+version = "0.2.0"
+description = "Graphs for Friday bottle raffles."
+authors = [
+  "Mikael Siidorow <mikael.siidorow@aalto.fi>",
+  "Kalle Ahlstrom <71292737+kqlski@users.noreply.github.com>",
+]
+license = "GPL-3.0"
+readme = "README.md"
+
+
+[tool.poe.tasks]
+start = "poetry run python -m kipubot"
+dev = "watchfiles 'poetry run  poe start' kipubot"
+test = "poetry run pytest"
+test_hot = "watchfiles 'pytest' kipubot tests"
+lint = "poetry run ruff ."
+type = "poetry run pytype ."
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+pandas = "^2.0.0"
+matplotlib = "^3.7.1"
+scipy = "^1.10.1"
+python-dotenv = "^1.0.0"
+python-telegram-bot = "^20.2"
+psycopg = "^3.1.8"
+openpyxl = "^3.1.2"
+pytz = "^2023.3"
+uncertainties = "^3.1.7"
+
+[tool.poetry.group.dev.dependencies]
+watchfiles = "^0.19.0"
+ruff = "^0.0.261"
+pytype = "^2023.4.11"
+pytest = "^7.3.1"
+black = "^23.3.0"
+poethepoet = "^0.19.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

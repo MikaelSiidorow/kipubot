@@ -3,8 +3,7 @@ from telegram.ext import ContextTypes, ChatMemberHandler
 from telegram.constants import ChatMemberStatus
 import psycopg.errors as PSErrors
 from kipubot.constants import STRINGS
-from kipubot.db import (save_chat_or_ignore,
-                        save_user_or_ignore, register_user_or_ignore)
+from kipubot.db import save_chat_or_ignore, save_user_or_ignore, register_user_or_ignore
 
 
 async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -26,18 +25,19 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             register_user_or_ignore(chat_id, user_id)
 
         except PSErrors.IntegrityError as e:
-            print('SQLite Error: ' + str(e))
+            print("SQLite Error: " + str(e))
             await context.bot.send_message(
-                chat_id=chat_id,
-                text=STRINGS['unknown_error']
+                chat_id=chat_id, text=STRINGS["unknown_error"]
             )
         else:
             # Kiitos pääsystä! -stigu
             await context.bot.send_sticker(
                 chat_id=chat_id,
-                sticker='CAACAgQAAxkBAAIBPmLicTHP2Xv8IcFzxHYocjLRFBvQAAI5AAMcLHsXd9jLHwYNcSEpBA')
+                sticker="CAACAgQAAxkBAAIBPmLicTHP2Xv8IcFzxHYocjLRFBvQAAI5AAMcLHsXd9jLHwYNcSEpBA",
+            )
             await context.bot.send_message(
-                chat_id=chat_id,
-                text=STRINGS['moro_prompt'] % {'chat_title': title})
+                chat_id=chat_id, text=STRINGS["moro_prompt"] % {"chat_title": title}
+            )
+
 
 bot_added_handler = ChatMemberHandler(bot_added, -1)

@@ -23,29 +23,28 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-
-      - name: Install pipenv
+      - name: Install poetry
         run: |
           python3 -m pip install --upgrade pip
-          pip install pipenv
+          python3 -m pip install --user pipx
+          python3 -m pipx ensurepath
+          pipx install poetry
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "poetry"
 
       - name: Install dependencies
         run: |
-          pipenv install --dev
-
-      - name: Set PYTHONPATH
-        run: |
-          echo "PYTHONPATH=${PYTHONPATH}:kipubot" >> $GITHUB_ENV
+          poetry install
 
       - name: Lint with pylint
         run: |
-          pipenv run lint
+          poetry run poe lint
 
       - name: Set testing BOT_TOKEN
         run: |
@@ -53,12 +52,12 @@ jobs:
 
       - name: Type-check with pytype
         run: |
-          pipenv run pytype
+          poetry run poe type
         env:
           DATABASE_URL: "postgres://postgres:postgres@localhost:5432/postgres"
 
       - name: Run unit tests
         run: |
-          pipenv run pytest
+          poetry run poe test
         env:
           DATABASE_URL: "postgres://postgres:postgres@localhost:5432/postgres"

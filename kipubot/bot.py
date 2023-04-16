@@ -3,20 +3,23 @@
 
 from telegram.ext import ApplicationBuilder, PicklePersistence
 from kipubot import BOT_TOKEN
-from kipubot.handlers import (start_handler, moro_handler, excel_file_handler,
-                              bot_added_handler, winner_handler, graph_handler,
-                              expected_value_handler, raffle_setup_handler, no_dm_handler,
-                              error_handler)
+from kipubot.handlers import (
+    start_handler,
+    moro_handler,
+    excel_file_handler,
+    bot_added_handler,
+    winner_handler,
+    graph_handler,
+    expected_value_handler,
+    raffle_setup_handler,
+    no_dm_handler,
+    error_handler,
+)
 
 
 def main() -> None:
-    persistence = PicklePersistence(filepath='data/.pkl')
-    app = (
-        ApplicationBuilder()
-        .token(BOT_TOKEN)
-        .persistence(persistence)
-        .build()
-    )
+    persistence = PicklePersistence(filepath="data/.pkl")
+    app = ApplicationBuilder().token(BOT_TOKEN).persistence(persistence).build()
 
     app.add_handler(start_handler)
 
