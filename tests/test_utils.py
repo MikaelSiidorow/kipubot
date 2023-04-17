@@ -12,8 +12,8 @@ from kipubot.db import (
     save_chat_or_ignore,
     save_user_or_ignore,
 )
+from kipubot.types import RaffleData
 from kipubot.utils import (
-    RaffleData,
     get_raffle,
     int_price_to_str,
     read_excel_to_df,

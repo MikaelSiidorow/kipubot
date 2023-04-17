@@ -7,8 +7,8 @@ from telegram.ext import CallbackQueryHandler, ContextTypes, ConversationHandler
 
 from kipubot.constants import STRINGS
 from kipubot.errors import NoRaffleError
+from kipubot.types import RaffleData
 from kipubot.utils import (
-    RaffleData,
     get_cur_time_hel,
     get_raffle_stats,
     int_price_to_str,

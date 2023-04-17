@@ -9,7 +9,7 @@ from psycopg_pool import ConnectionPool
 
 from kipubot import config
 from kipubot.errors import AlreadyRegisteredError
-from kipubot.utils import RaffleData
+from kipubot.types import RaffleData
 
 _pool = ConnectionPool(
     config.DATABASE_URL,

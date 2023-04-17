@@ -2,7 +2,7 @@
 
 import os
 import re
-from typing import Any, NamedTuple
+from typing import Any
 
 import matplotlib.dates as mdates  # type: ignore
 import matplotlib.pyplot as plt  # type: ignore
@@ -17,25 +17,9 @@ from scipy.optimize import curve_fit  # type: ignore
 from telegram import Chat, ChatMember
 from telegram.error import BadRequest
 
-from kipubot import db
+from kipubot.db import get_raffle_data, save_raffle_data, update_raffle_data
 from kipubot.errors import NoEntriesError, NoRaffleError
-
-
-class RaffleStatsData(NamedTuple):
-    """Data for raffle stats without entry data."""
-
-    start_date: pd.Timestamp
-    end_date: pd.Timestamp
-    entry_fee: int
-
-
-class RaffleData(NamedTuple):
-    """Data for raffle stats with entry data."""
-
-    start_date: pd.Timestamp
-    end_date: pd.Timestamp
-    entry_fee: int
-    df: pd.DataFrame
+from kipubot.types import RaffleData, RaffleStatsData
 
 
 def is_int(x: str) -> bool:
@@ -188,7 +172,7 @@ def read_excel_to_df(
 
 def get_raffle_stats(chat_id: int) -> tuple[str, RaffleStatsData]:
     """Get the stats of a raffle, not including dataframe."""
-    query_result = db.get_raffle_data(chat_id)
+    query_result = get_raffle_data(chat_id)
 
     if query_result is None:
         error_text = f"No raffle found for chat {chat_id}"
@@ -201,7 +185,7 @@ def get_raffle_stats(chat_id: int) -> tuple[str, RaffleStatsData]:
 
 def get_raffle(chat_id: int) -> RaffleData:
     """Get the data of a raffle, including dataframe."""
-    query_result = db.get_raffle_data(chat_id)
+    query_result = get_raffle_data(chat_id)
 
     if query_result is None:
         error_text = f"No raffle found for chat {chat_id}"
@@ -234,7 +218,7 @@ def save_raffle(
     raffle_data: RaffleData,
 ) -> None:
     """Save a raffle to the database."""
-    db.save_raffle_data(chat_id, user_id, raffle_data)
+    save_raffle_data(chat_id, user_id, raffle_data)
 
 
 def update_raffle(
@@ -242,7 +226,7 @@ def update_raffle(
     raffle_data: RaffleData,
 ) -> None:
     """Update a raffle in the database."""
-    db.update_raffle_data(raffle_id, raffle_data)
+    update_raffle_data(raffle_id, raffle_data)
 
 
 def parse_df_essentials(raffle_data: RaffleData) -> RaffleData:
