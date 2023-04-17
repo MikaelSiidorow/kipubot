@@ -1,43 +1,37 @@
 import logging
-from collections.abc import Generator
 from contextlib import contextmanager, suppress
 
-import psycopg
 import psycopg.errors as pserrors
 from pandas import DataFrame, Timestamp
-from psycopg.rows import TupleRow
+from psycopg_pool import ConnectionPool
 
 from kipubot import config
 from kipubot.errors import AlreadyRegisteredError
 
-# LOGGER
+_pool = ConnectionPool(
+    config.DATABASE_URL,
+)
+
 _logger = logging.getLogger(__name__)
 
 
-# DB CONNECTION
 @contextmanager
-def get_pg_conn() -> Generator[psycopg.Connection[TupleRow], None, None]:
-    """
-    Get a connection to the postgres database.
-    """
-    _logger.info("Connecting to DB...")
-    conn = psycopg.connect(config.DATABASE_URL)
-    _logger.info("Connected!")
-
+def logging_connection():
+    """Log errors while connecting to the database"""
     try:
-        yield conn
-    except pserrors.Error:
-        _logger.exception("Unknown error during database operation!")
-        conn.rollback()
+        _logger.info("Getting db connection...")
+        with _pool.connection() as conn:
+            yield conn
+    except Exception:
+        _logger.exception("Error while getting connection!")
     else:
-        _logger.info("Committing changes...")
-        conn.commit()
+        _logger.info("Connection to database successful!")
     finally:
-        conn.close()
+        _logger.info("Freeing database connection...")
 
 
-def _init_db() -> None:
-    with get_pg_conn() as conn:
+def init_db():
+    with logging_connection() as conn:
         conn.execute(
             """CREATE TABLE IF NOT EXISTS chat (
                         chat_id BIGINT PRIMARY KEY,
@@ -76,7 +70,7 @@ def _init_db() -> None:
 
 
 def get_registered_member_ids(chat_id: int) -> list[int]:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         return [
             row[0]
             for row in conn.execute(
@@ -89,7 +83,7 @@ def get_registered_member_ids(chat_id: int) -> list[int]:
 
 
 def get_admin_ids(chat_id: int) -> list[int]:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         data = conn.execute(
             "SELECT admins FROM chat WHERE chat_id = %s", (chat_id,)
         ).fetchone()
@@ -97,7 +91,7 @@ def get_admin_ids(chat_id: int) -> list[int]:
 
 
 def get_prev_winner_ids(chat_id: int) -> list[int]:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         data = conn.execute(
             "SELECT prev_winners FROM chat WHERE chat_id = %s", (chat_id,)
         ).fetchone()
@@ -105,7 +99,7 @@ def get_prev_winner_ids(chat_id: int) -> list[int]:
 
 
 def get_winner_id(chat_id: int) -> int:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         data = conn.execute(
             "SELECT cur_winner FROM chat WHERE chat_id = %s", (chat_id,)
         ).fetchone()
@@ -113,8 +107,8 @@ def get_winner_id(chat_id: int) -> int:
 
 
 def get_chats_where_winner(user_id: int) -> list[tuple[int, str]]:
-    with get_pg_conn() as conn:
-        return conn.execute(  # type: ignore
+    with logging_connection() as conn:
+        return conn.execute(
             """SELECT c.chat_id, c.title
                 FROM chat AS c, in_chat as i
                 WHERE i.user_id = %(id)s
@@ -127,8 +121,8 @@ def get_chats_where_winner(user_id: int) -> list[tuple[int, str]]:
 def get_raffle_data(
     chat_id: int,
 ) -> tuple[int, Timestamp, Timestamp, int, list[Timestamp], list[str], list[int]]:
-    with get_pg_conn() as conn:
-        return conn.execute(  # type: ignore
+    with logging_connection() as conn:
+        return conn.execute(
             "SELECT * FROM raffle WHERE chat_id = %s", [chat_id]
         ).fetchone()
 
@@ -144,7 +138,7 @@ def save_raffle_data(
     entries = df["name"].tolist()
     amounts = df["amount"].tolist()
 
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         conn.execute(
             """INSERT INTO raffle
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -163,13 +157,13 @@ def save_raffle_data(
 
 
 def delete_raffle_data(chat_id: int):
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         conn.execute("""DELETE FROM raffle where chat_id=%s""", (chat_id,))
         conn.commit()
 
 
 def save_user_or_ignore(user_id: int) -> None:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         conn.execute(
             """INSERT INTO chat_user
                     VALUES (%s)
@@ -180,7 +174,7 @@ def save_user_or_ignore(user_id: int) -> None:
 
 
 def save_chat_or_ignore(chat_id: int, title: str, admin_ids: list[int]) -> None:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         conn.execute(
             """INSERT INTO chat (chat_id, title, admins)
                                 VALUES (%s, %s, %s)
@@ -191,7 +185,7 @@ def save_chat_or_ignore(chat_id: int, title: str, admin_ids: list[int]) -> None:
 
 
 def delete_chat(chat_id: int):
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         conn.execute("""DELETE FROM chat where chat_id=%s""", (chat_id,))
         conn.commit()
 
@@ -199,7 +193,7 @@ def delete_chat(chat_id: int):
 def register_user(chat_id: int, user_id: int) -> None:
     save_user_or_ignore(user_id)
 
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         try:
             conn.execute(
                 """INSERT INTO in_chat(user_id, chat_id)
@@ -219,7 +213,7 @@ def register_user_or_ignore(chat_id: int, user_id: int) -> None:
 
 
 def admin_cycle_winners(winner_id: int, chat_id: int) -> None:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         conn.execute(
             """UPDATE chat
                 SET prev_winners = array_append(prev_winners, cur_winner),
@@ -231,7 +225,7 @@ def admin_cycle_winners(winner_id: int, chat_id: int) -> None:
 
 
 def replace_cur_winner(winner_id: int, chat_id: int) -> None:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         conn.execute(
             """UPDATE chat
                                 SET cur_winner=%s
@@ -241,7 +235,7 @@ def replace_cur_winner(winner_id: int, chat_id: int) -> None:
 
 
 def cycle_winners(user_id: int, winner_id: int, chat_id: int) -> None:
-    with get_pg_conn() as conn:
+    with logging_connection() as conn:
         conn.execute(
             """UPDATE chat
                                 SET prev_winners=array_append(prev_winners, %s),
@@ -249,3 +243,7 @@ def cycle_winners(user_id: int, winner_id: int, chat_id: int) -> None:
                                 WHERE chat_id=%s""",
             (user_id, winner_id, chat_id),
         )
+
+
+if __name__ == "__main__":
+    init_db()

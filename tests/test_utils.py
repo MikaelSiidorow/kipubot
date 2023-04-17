@@ -4,7 +4,7 @@ import pytest
 from pandas import Timestamp
 from pandas.testing import assert_frame_equal
 
-from kipubot.db import _init_db, delete_chat, delete_raffle_data, save_chat_or_ignore
+from kipubot.db import delete_chat, delete_raffle_data, init_db, save_chat_or_ignore
 from kipubot.utils import (
     get_raffle,
     int_price_to_str,
@@ -88,7 +88,7 @@ class TestUtils:
 class TestGraphSave:
     @pytest.fixture(autouse=True)
     def create_chat(self):
-        _init_db()
+        init_db()
         save_chat_or_ignore(1, "testing", [1])
         yield 1
         delete_chat(1)

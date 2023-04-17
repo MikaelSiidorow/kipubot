@@ -3,7 +3,7 @@
 from telegram.ext import ApplicationBuilder, PicklePersistence
 
 from kipubot import config
-from kipubot.db import _init_db
+from kipubot.db import init_db
 from kipubot.handlers import (
     bot_added_handler,
     error_handler,
@@ -19,8 +19,7 @@ from kipubot.handlers import (
 
 def main() -> None:
     # INITIALIZE DB AND CREATE TABLES IF THEY DON'T EXIST
-    _init_db()
-
+    init_db()
     persistence = PicklePersistence(filepath="data/.pkl")
     app = ApplicationBuilder().token(config.BOT_TOKEN).persistence(persistence).build()
 
