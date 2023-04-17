@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  test-database:
+    image: postgres
+    environment:
+      - POSTGRES_USER=username
+      - POSTGRES_PASSWORD=password
+  kipubot:
+    image: kipubot-test
+    build:
+      context: .
+      dockerfile: test.Dockerfile
+    volumes:
+      - ./kipubot:/bot/kipubot
+      - ./tests:/bot/tests
+    environment:
+      - MODE=TEST
+      - PYTHONPATH=${PYTHONPATH}:kipubot
+      - DATABASE_URL=postgresql://username:password@test-database:5432
+    depends_on:
+      - test-database
