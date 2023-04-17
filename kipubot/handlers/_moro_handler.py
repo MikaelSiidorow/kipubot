@@ -7,6 +7,9 @@ from kipubot.errors import AlreadyRegisteredError
 
 
 async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_chat or not update.effective_user or not update.message:
+        return None
+
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     username = update.effective_user.username

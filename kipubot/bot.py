@@ -2,12 +2,12 @@
 
 from telegram.ext import ApplicationBuilder, PicklePersistence
 
-from kipubot import BOT_TOKEN
+from kipubot import config
+from kipubot.db import _init_db
 from kipubot.handlers import (
     bot_added_handler,
     error_handler,
     excel_file_handler,
-    expected_value_handler,
     graph_handler,
     moro_handler,
     no_dm_handler,
@@ -18,8 +18,11 @@ from kipubot.handlers import (
 
 
 def main() -> None:
+    # INITIALIZE DB AND CREATE TABLES IF THEY DON'T EXIST
+    _init_db()
+
     persistence = PicklePersistence(filepath="data/.pkl")
-    app = ApplicationBuilder().token(BOT_TOKEN).persistence(persistence).build()
+    app = ApplicationBuilder().token(config.BOT_TOKEN).persistence(persistence).build()
 
     app.add_handler(start_handler)
 
@@ -30,7 +33,6 @@ def main() -> None:
     app.add_handler(moro_handler)
     app.add_handler(graph_handler)
     app.add_handler(winner_handler)
-    app.add_handler(expected_value_handler)
 
     # warning about using a command in a private chat
     app.add_handler(no_dm_handler)

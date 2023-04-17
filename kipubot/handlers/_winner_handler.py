@@ -24,6 +24,15 @@ TWO_ENTITIES = 2
 
 
 async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    if (
+        not update.effective_chat
+        or not update.effective_user
+        or not update.message
+        or not update.message.entities
+        or not update.message.text
+    ):
+        return None
+
     # only usable by admin, previous winner (in case of typos) and current winner
     # usage: /winner @username
     # -> set the winner to the given username
@@ -34,7 +43,7 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if len(ent) != TWO_ENTITIES or ent[1].type != MessageEntityType.MENTION:
         await update.message.reply_text(STRINGS["invalid_winner_usage"])
-        return
+        return None
 
     username = update.message.text.split(" ")[1][1:]
 
@@ -50,12 +59,12 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
         registered_member_ids = get_registered_member_ids(chat_id)
-        registered_members = [
+        all_members = [
             await get_chat_member_opt(update.effective_chat, member_id)
             for member_id in registered_member_ids
         ]
         # drop None values
-        registered_members = [m for m in registered_members if m]
+        registered_members = [m for m in all_members if m]
         supposed_winner = [
             member for member in registered_members if member.user.username == username
         ]

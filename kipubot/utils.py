@@ -1,17 +1,17 @@
 import os
 import re
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
+import matplotlib.dates as mdates  # type: ignore
+import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
 import pandas as pd
 import pytz
-import uncertainties as unc
-import uncertainties.unumpy as unp
-from matplotlib.ticker import AutoMinorLocator
-from scipy import stats
-from scipy.optimize import curve_fit
+import uncertainties as unc  # type: ignore
+import uncertainties.unumpy as unp  # type: ignore
+from matplotlib.ticker import AutoMinorLocator  # type: ignore
+from scipy import stats  # type: ignore
+from scipy.optimize import curve_fit  # type: ignore
 from telegram import Chat, ChatMember
 from telegram.error import BadRequest
 
@@ -19,11 +19,17 @@ from kipubot import db
 from kipubot.errors import NoRaffleError
 
 
+class RaffleStatsData(NamedTuple):
+    start_date: pd.Timestamp
+    end_date: pd.Timestamp
+    entry_fee: int
+
+
 class RaffleData(NamedTuple):
     start_date: pd.Timestamp
     end_date: pd.Timestamp
     entry_fee: int
-    df: pd.DataFrame | None
+    df: pd.DataFrame
 
 
 def is_int(x: str) -> bool:
@@ -45,9 +51,11 @@ def is_float(x: str) -> bool:
 
 
 def int_price_to_str(num: int) -> str:
-    num = num / 100.0
+    float_num = num / 100.0
 
-    str_num: str = format(num, ".2f") if num >= 0 else "-" + format(-num, ".2f")
+    str_num: str = (
+        format(float_num, ".2f") if float_num >= 0 else "-" + format(-float_num, ".2f")
+    )
 
     euros, cents = str_num.split(".")
 
@@ -86,9 +94,7 @@ def preband(x, xd, yd, p, func):
     return lpb, upb
 
 
-def fit_timedata(
-    x_series: "pd.Series[np.int64]", y_series: "pd.Series[np.int64]"
-):  # pylint: disable=too-many-locals
+def fit_timedata(x_series: "pd.Series[Any]", y_series: "pd.Series[Any]"):
     # ignore the end date in curve fitting
     x = x_series.values[:-1]
     y = y_series.values[:-1]
@@ -96,7 +102,6 @@ def fit_timedata(
     def f(x, slope, intercept):
         return slope * x + intercept
 
-    # pylint: disable=unbalanced-tuple-unpacking
     popt, pcov = curve_fit(f, x, y)
 
     a, b = unc.correlated_values(popt, pcov)
@@ -115,9 +120,9 @@ def fit_timedata(
     lpb, upb = preband(px, x, y, popt, f)
 
     # convert back to dates
-    px = [pd.to_datetime(x, unit="ns") for x in px]
+    px_dates = [pd.to_datetime(x, unit="ns") for x in px]
 
-    return (px, nom, std, lpb, upb)
+    return (px_dates, nom, std, lpb, upb)
 
 
 def remove_emojis(text: str) -> str:
@@ -166,7 +171,7 @@ def read_excel_to_df(
     return df
 
 
-def get_raffle(chat_id: int, *, include_df: bool = False) -> RaffleData:
+def get_raffle_stats(chat_id: int) -> RaffleStatsData:
     query_result = db.get_raffle_data(chat_id)
 
     if query_result is None:
@@ -175,12 +180,21 @@ def get_raffle(chat_id: int, *, include_df: bool = False) -> RaffleData:
 
     _, start_date, end_date, entry_fee, dates, entries, amounts = query_result
 
-    if include_df:
-        df = pd.DataFrame(data={"date": dates, "name": entries, "amount": amounts})
-        df.set_index("date", inplace=True)
-        return RaffleData(start_date, end_date, entry_fee, df)
+    return RaffleStatsData(start_date, end_date, entry_fee)
 
-    return RaffleData(start_date, end_date, entry_fee, None)
+
+def get_raffle(chat_id: int) -> RaffleData:
+    query_result = db.get_raffle_data(chat_id)
+
+    if query_result is None:
+        error_text = f"No raffle found for chat {chat_id}"
+        raise NoRaffleError(error_text)
+
+    _, start_date, end_date, entry_fee, dates, entries, amounts = query_result
+
+    df = pd.DataFrame(data={"date": dates, "name": entries, "amount": amounts})
+    df.set_index("date", inplace=True)
+    return RaffleData(start_date, end_date, entry_fee, df)
 
 
 def get_cur_time_hel() -> pd.Timestamp:
@@ -267,7 +281,7 @@ def configure_and_save_plot(out_img_path: str) -> None:
 
 def generate_graph(out_img_path: str, chat_id: int, chat_title: str) -> None:
     # -- get raffle data --
-    raffle_data = get_raffle(chat_id, include_df=True)
+    raffle_data = get_raffle(chat_id)
 
     # -- parse and fit data --
     start_date, end_date, _, df = parse_graph(raffle_data)
@@ -307,7 +321,7 @@ def generate_graph(out_img_path: str, chat_id: int, chat_title: str) -> None:
 
 def generate_expected(out_img_path: str, chat_id: int, chat_title: str) -> None:
     # -- get raffle data --
-    raffle_data = get_raffle(chat_id, include_df=True)
+    raffle_data = get_raffle(chat_id)
 
     # -- parse and fit data --
     start_date, _, entry_fee, df = parse_expected(raffle_data)

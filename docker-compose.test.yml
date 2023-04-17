@@ -15,7 +15,7 @@ services:
       - ./tests:/bot/tests
     environment:
       - MODE=TEST
-      - PYTHONPATH=${PYTHONPATH}:kipubot
       - DATABASE_URL=postgresql://username:password@test-database:5432
+      - BOT_TOKEN=fake
     depends_on:
       - test-database

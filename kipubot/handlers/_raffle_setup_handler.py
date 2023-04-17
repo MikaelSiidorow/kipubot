@@ -3,13 +3,13 @@ from typing import Literal
 
 import pandas as pd
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackContext, CallbackQueryHandler, ConversationHandler
+from telegram.ext import CallbackQueryHandler, ContextTypes, ConversationHandler
 
 from kipubot.constants import STRINGS
 from kipubot.errors import NoRaffleError
 from kipubot.utils import (
     get_cur_time_hel,
-    get_raffle,
+    get_raffle_stats,
     int_price_to_str,
     is_float,
     is_int,
@@ -25,24 +25,36 @@ from kipubot.utils import (
 # ----------------
 
 
-async def cancel_convo(update: Update, context: CallbackContext) -> int:
+async def cancel_convo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.message.edit_text(STRINGS["cancelled"], reply_markup=None)
-    context.user_data.clear()
+    if not query or not query.message:
+        return ConversationHandler.END
+    await query.answer(STRINGS["cancelled"])
+    await query.message.edit_text(STRINGS["cancelled"])
+    if context.user_data:
+        context.user_data.clear()
     return ConversationHandler.END
 
 
-async def convo_error(update: Update, context: CallbackContext) -> int:
+async def convo_error(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.message.edit_text(STRINGS["unknown_error"], reply_markup=None)
-    context.user_data.clear()
+    if not query or not query.message:
+        return ConversationHandler.END
+    await query.answer(STRINGS["unknown_error"])
+    await query.message.edit_text(STRINGS["unknown_error"])
+    if context.user_data:
+        context.user_data.clear()
     return ConversationHandler.END
 
 
-async def convo_timeout(update: Update, context: CallbackContext) -> int:
+async def convo_timeout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.message.edit_text(STRINGS["timed_out"], reply_markup=None)
-    context.user_data.clear()
+    if not query or not query.message:
+        return ConversationHandler.END
+    await query.answer(STRINGS["timed_out"])
+    await query.message.edit_text(STRINGS["timed_out"])
+    if context.user_data:
+        context.user_data.clear()
     return ConversationHandler.END
 
 
@@ -147,8 +159,12 @@ def fee_keyboard() -> InlineKeyboardMarkup:
 # =================
 
 
-async def setup_raffle(update: Update, context: CallbackContext) -> str | int:
+async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str | int:
     query = update.callback_query
+    if not query or not query.message or not query.data or context.user_data is None:
+        if query:
+            await query.answer(STRINGS["unknown_error"])
+        return ConversationHandler.END
 
     if query.data == "raffle:cancel":
         return await cancel_convo(update, context)
@@ -168,7 +184,7 @@ async def setup_raffle(update: Update, context: CallbackContext) -> str | int:
         context.user_data["raffle_chat_title"] = chat_title
 
         try:
-            get_raffle(chat_id)
+            get_raffle_stats(chat_id)
 
             msg = (
                 STRINGS["raffle_setup_base"] + STRINGS["raffle_setup_update_or_new"]
@@ -191,8 +207,12 @@ async def setup_raffle(update: Update, context: CallbackContext) -> str | int:
     return await convo_error(update, context)
 
 
-async def setup_start_date(update: Update, context: CallbackContext) -> str | None:
+async def setup_start_date(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> str | int:
     query = update.callback_query
+    if not query or not query.message or not query.data or not context.user_data:
+        return ConversationHandler.END
 
     if query.data == "raffle:setup:new":
         context.user_data["raffle_start_date"] = get_cur_time_hel().floor(freq="15T")
@@ -204,7 +224,7 @@ async def setup_start_date(update: Update, context: CallbackContext) -> str | No
     ):
         diff = float(query.data.split(":")[4])
         old_date = context.user_data["raffle_start_date"]
-        new_date = old_date + pd.Timedelta(diff, unit="h")
+        new_date = old_date + pd.Timedelta(diff, unit="h")  # type: ignore
 
         context.user_data["raffle_start_date"] = new_date
 
@@ -223,11 +243,15 @@ async def setup_start_date(update: Update, context: CallbackContext) -> str | No
 
         return "raffle_setup_state:start_date"
 
-    return None
+    return ConversationHandler.END
 
 
-async def setup_end_date(update: Update, context: CallbackContext) -> str | None:
+async def setup_end_date(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> str | int:
     query = update.callback_query
+    if not query or not query.message or not query.data or not context.user_data:
+        return ConversationHandler.END
 
     if query.data == "raffle:date:start:confirmed":
         context.user_data["raffle_end_date"] = context.user_data["raffle_start_date"]
@@ -235,9 +259,9 @@ async def setup_end_date(update: Update, context: CallbackContext) -> str | None
     if (
         query.data.startswith("raffle:date:end:update")
         and len(query.data.split(":")) == RAFFLE_DATE_UPDATE_DATA_LENGTH
-        and is_float(query.data.split(":")[4])
+        and is_int(query.data.split(":")[4])
     ):
-        diff = float(query.data.split(":")[4])
+        diff = int(query.data.split(":")[4])
         old_date = context.user_data["raffle_end_date"]
         new_date = old_date + pd.Timedelta(diff, unit="h")
 
@@ -272,11 +296,13 @@ async def setup_end_date(update: Update, context: CallbackContext) -> str | None
 
         return "raffle_setup_state:end_date"
 
-    return None
+    return ConversationHandler.END
 
 
-async def setup_fee(update: Update, context: CallbackContext) -> str | None:
+async def setup_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str | int:
     query = update.callback_query
+    if not query or not query.message or not query.data or not context.user_data:
+        return ConversationHandler.END
 
     if query.data == "raffle:date:end:confirmed":
         context.user_data["raffle_fee"] = 100
@@ -323,11 +349,20 @@ async def setup_fee(update: Update, context: CallbackContext) -> str | None:
 
         return "raffle_setup_state:fee"
 
-    return None
+    return ConversationHandler.END
 
 
-async def finish_setup(update: Update, context: CallbackContext) -> int | None:
+async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int | int:
     query = update.callback_query
+    if (
+        not query
+        or not query.message
+        or not query.data
+        or not context.user_data
+        or not update.effective_chat
+        or not update.effective_user
+    ):
+        return ConversationHandler.END
     dm_id = update.effective_chat.id
 
     if query.data == "raffle:setup:old":
@@ -335,7 +370,7 @@ async def finish_setup(update: Update, context: CallbackContext) -> int | None:
         chat_id = context.user_data["raffle_chat_id"]
         dm_id = update.effective_chat.id
 
-        start_date, end_date, entry_fee, _ = get_raffle(chat_id)
+        start_date, end_date, entry_fee = get_raffle_stats(chat_id)
         excel_path = f"data/{dm_id}/data.xlsx"
         df = read_excel_to_df(excel_path, start_date, end_date)
         save_raffle(chat_id, start_date, end_date, entry_fee, df)
@@ -378,7 +413,8 @@ async def finish_setup(update: Update, context: CallbackContext) -> int | None:
             "fee": int_price_to_str(fee),
         }
 
-        await query.message.edit_text(msg, reply_markup=None)
+        await query.message.edit_text(msg)
+        await query.answer()
         await context.bot.send_message(
             chat_id,
             STRINGS["raffle_created_chat"]
@@ -391,7 +427,7 @@ async def finish_setup(update: Update, context: CallbackContext) -> int | None:
 
         return ConversationHandler.END
 
-    return None
+    return ConversationHandler.END
 
 
 raffle_setup_handler = ConversationHandler(

@@ -1,30 +1,44 @@
 import logging
-from contextlib import suppress
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 
 import psycopg
 import psycopg.errors as pserrors
 from pandas import DataFrame, Timestamp
+from psycopg.rows import TupleRow
 
+from kipubot import config
 from kipubot.errors import AlreadyRegisteredError
-
-# STORE DB CONNECTION
-_CON: psycopg.Connection | None = None
 
 # LOGGER
 _logger = logging.getLogger(__name__)
 
 
-def _init_db(url: str) -> None:
-    global _CON  # noqa: PLW0603
+# DB CONNECTION
+@contextmanager
+def get_pg_conn() -> Generator[psycopg.Connection[TupleRow], None, None]:
+    """
+    Get a connection to the postgres database.
+    """
+    _logger.info("Connecting to DB...")
+    conn = psycopg.connect(config.DATABASE_URL)
+    _logger.info("Connected!")
 
-    if not _CON:
-        _logger.info("Connecting to DB...")
-        _CON = psycopg.connect(url)
-        _logger.info("Connected!")
-
-    _logger.info("Initializing database...")
     try:
-        _CON.execute(
+        yield conn
+    except pserrors.Error:
+        _logger.exception("Unknown error during database operation!")
+        conn.rollback()
+    else:
+        _logger.info("Committing changes...")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _init_db() -> None:
+    with get_pg_conn() as conn:
+        conn.execute(
             """CREATE TABLE IF NOT EXISTS chat (
                         chat_id BIGINT PRIMARY KEY,
                         title VARCHAR(128),
@@ -34,13 +48,13 @@ def _init_db(url: str) -> None:
                     )"""
         )
 
-        _CON.execute(
+        conn.execute(
             """CREATE TABLE IF NOT EXISTS chat_user (
                         user_id BIGINT PRIMARY KEY
                     )"""
         )
 
-        _CON.execute(
+        conn.execute(
             """CREATE TABLE IF NOT EXISTS in_chat (
                         user_id BIGINT REFERENCES chat_user(user_id),
                         chat_id BIGINT REFERENCES chat(chat_id),
@@ -48,7 +62,7 @@ def _init_db(url: str) -> None:
                     )"""
         )
 
-        _CON.execute(
+        conn.execute(
             """CREATE TABLE IF NOT EXISTS raffle (
                         chat_id BIGINT PRIMARY KEY REFERENCES chat(chat_id),
                         start_date TIMESTAMP,
@@ -59,59 +73,64 @@ def _init_db(url: str) -> None:
                         amounts INTEGER[]
                     )"""
         )
-    except pserrors.Error:
-        _logger.exception("Unknown error during database initialization!")
-        _CON.rollback()
-    else:
-        _logger.info("Database succesfully initialized!")
-        _CON.commit()
 
 
 def get_registered_member_ids(chat_id: int) -> list[int]:
-    return [
-        row[0]
-        for row in _CON.execute(
-            """SELECT chat_user.user_id
-            FROM chat_user, in_chat
-            WHERE chat_id = %s AND chat_user.user_id = in_chat.user_id""",
-            (chat_id,),
-        ).fetchall()
-    ]
+    with get_pg_conn() as conn:
+        return [
+            row[0]
+            for row in conn.execute(
+                """SELECT chat_user.user_id
+                FROM chat_user, in_chat
+                WHERE chat_id = %s AND chat_user.user_id = in_chat.user_id""",
+                (chat_id,),
+            ).fetchall()
+        ]
 
 
 def get_admin_ids(chat_id: int) -> list[int]:
-    return _CON.execute(
-        "SELECT admins FROM chat WHERE chat_id = %s", (chat_id,)
-    ).fetchone()[0]
+    with get_pg_conn() as conn:
+        data = conn.execute(
+            "SELECT admins FROM chat WHERE chat_id = %s", (chat_id,)
+        ).fetchone()
+        return data[0] if data else []
 
 
 def get_prev_winner_ids(chat_id: int) -> list[int]:
-    return _CON.execute(
-        "SELECT prev_winners FROM chat WHERE chat_id = %s", (chat_id,)
-    ).fetchone()[0]
+    with get_pg_conn() as conn:
+        data = conn.execute(
+            "SELECT prev_winners FROM chat WHERE chat_id = %s", (chat_id,)
+        ).fetchone()
+        return data[0] if data else []
 
 
 def get_winner_id(chat_id: int) -> int:
-    return _CON.execute(
-        "SELECT cur_winner FROM chat WHERE chat_id = %s", (chat_id,)
-    ).fetchone()[0]
+    with get_pg_conn() as conn:
+        data = conn.execute(
+            "SELECT cur_winner FROM chat WHERE chat_id = %s", (chat_id,)
+        ).fetchone()
+        return data[0] if data else None
 
 
 def get_chats_where_winner(user_id: int) -> list[tuple[int, str]]:
-    return _CON.execute(
-        """SELECT c.chat_id, c.title
-            FROM chat AS c, in_chat as i
-            WHERE i.user_id = %(id)s
-                AND c.chat_id = i.chat_id
-                AND (c.cur_winner = %(id)s)""",
-        {"id": user_id},
-    ).fetchall()
+    with get_pg_conn() as conn:
+        return conn.execute(  # type: ignore
+            """SELECT c.chat_id, c.title
+                FROM chat AS c, in_chat as i
+                WHERE i.user_id = %(id)s
+                    AND c.chat_id = i.chat_id
+                    AND (c.cur_winner = %(id)s)""",
+            {"id": user_id},
+        ).fetchall()
 
 
 def get_raffle_data(
     chat_id: int,
 ) -> tuple[int, Timestamp, Timestamp, int, list[Timestamp], list[str], list[int]]:
-    return _CON.execute("SELECT * FROM raffle WHERE chat_id = %s", [chat_id]).fetchone()
+    with get_pg_conn() as conn:
+        return conn.execute(  # type: ignore
+            "SELECT * FROM raffle WHERE chat_id = %s", [chat_id]
+        ).fetchone()
 
 
 def save_raffle_data(
@@ -125,70 +144,73 @@ def save_raffle_data(
     entries = df["name"].tolist()
     amounts = df["amount"].tolist()
 
-    _CON.execute(
-        """INSERT INTO raffle
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (chat_id)
-                    DO UPDATE SET
-                        start_date = EXCLUDED.start_date,
-                        end_date = EXCLUDED.end_date,
-                        entry_fee = EXCLUDED.entry_fee,
-                        dates = EXCLUDED.dates,
-                        entries = EXCLUDED.entries,
-                        amounts = EXCLUDED.amounts""",
-        (chat_id, start_date, end_date, entry_fee, dates, entries, amounts),
-    )
+    with get_pg_conn() as conn:
+        conn.execute(
+            """INSERT INTO raffle
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (chat_id)
+                        DO UPDATE SET
+                            start_date = EXCLUDED.start_date,
+                            end_date = EXCLUDED.end_date,
+                            entry_fee = EXCLUDED.entry_fee,
+                            dates = EXCLUDED.dates,
+                            entries = EXCLUDED.entries,
+                            amounts = EXCLUDED.amounts""",
+            (chat_id, start_date, end_date, entry_fee, dates, entries, amounts),
+        )
 
-    _CON.commit()
+        conn.commit()
 
 
 def delete_raffle_data(chat_id: int):
-    _CON.execute("""DELETE FROM raffle where chat_id=%s""", (chat_id,))
-    _CON.commit()
+    with get_pg_conn() as conn:
+        conn.execute("""DELETE FROM raffle where chat_id=%s""", (chat_id,))
+        conn.commit()
 
 
 def save_user_or_ignore(user_id: int) -> None:
-    _CON.execute(
-        """INSERT INTO chat_user
-                VALUES (%s)
-                ON CONFLICT (user_id)
-                DO NOTHING""",
-        (user_id,),
-    )
-
-    _CON.commit()
+    with get_pg_conn() as conn:
+        conn.execute(
+            """INSERT INTO chat_user
+                    VALUES (%s)
+                    ON CONFLICT (user_id)
+                    DO NOTHING""",
+            (user_id,),
+        )
 
 
 def save_chat_or_ignore(chat_id: int, title: str, admin_ids: list[int]) -> None:
-    _CON.execute(
-        """INSERT INTO chat (chat_id, title, admins)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (chat_id)
-                            DO NOTHING""",
-        (chat_id, title, admin_ids),
-    )
-    _CON.commit()
+    with get_pg_conn() as conn:
+        conn.execute(
+            """INSERT INTO chat (chat_id, title, admins)
+                                VALUES (%s, %s, %s)
+                                ON CONFLICT (chat_id)
+                                DO NOTHING""",
+            (chat_id, title, admin_ids),
+        )
 
 
 def delete_chat(chat_id: int):
-    _CON.execute("""DELETE FROM chat where chat_id=%s""", (chat_id,))
-    _CON.commit()
+    with get_pg_conn() as conn:
+        conn.execute("""DELETE FROM chat where chat_id=%s""", (chat_id,))
+        conn.commit()
 
 
 def register_user(chat_id: int, user_id: int) -> None:
     save_user_or_ignore(user_id)
 
-    try:
-        _CON.execute(
-            """INSERT INTO in_chat(user_id, chat_id)
-                            VALUES (%s, %s)""",
-            (user_id, chat_id),
-        )
-    except pserrors.UniqueViolation as e:
-        _CON.rollback()
-        raise AlreadyRegisteredError from e
-    else:
-        _CON.commit()
+    with get_pg_conn() as conn:
+        try:
+            conn.execute(
+                """INSERT INTO in_chat(user_id, chat_id)
+                                VALUES (%s, %s)""",
+                (user_id, chat_id),
+            )
+        except pserrors.UniqueViolation as e:
+            conn.rollback()
+            raise AlreadyRegisteredError from e
+        else:
+            conn.commit()
 
 
 def register_user_or_ignore(chat_id: int, user_id: int) -> None:
@@ -197,32 +219,33 @@ def register_user_or_ignore(chat_id: int, user_id: int) -> None:
 
 
 def admin_cycle_winners(winner_id: int, chat_id: int) -> None:
-    _CON.execute(
-        """UPDATE chat
-                            SET prev_winners = array_append(prev_winners, cur_winner),
-                                cur_winner=%s
-                            WHERE chat_id=%s""",
-        (winner_id, chat_id),
-    )
-    _CON.commit()
+    with get_pg_conn() as conn:
+        conn.execute(
+            """UPDATE chat
+                SET prev_winners = array_append(prev_winners, cur_winner),
+                                    cur_winner=%s
+                WHERE chat_id=%s""",
+            (winner_id, chat_id),
+        )
+        conn.commit()
 
 
 def replace_cur_winner(winner_id: int, chat_id: int) -> None:
-    _CON.execute(
-        """UPDATE chat
-                            SET cur_winner=%s
-                            WHERE chat_id=%s""",
-        (winner_id, chat_id),
-    )
-    _CON.commit()
+    with get_pg_conn() as conn:
+        conn.execute(
+            """UPDATE chat
+                                SET cur_winner=%s
+                                WHERE chat_id=%s""",
+            (winner_id, chat_id),
+        )
 
 
 def cycle_winners(user_id: int, winner_id: int, chat_id: int) -> None:
-    _CON.execute(
-        """UPDATE chat
-                            SET prev_winners=array_append(prev_winners, %s),
-                                cur_winner=%s'
-                            WHERE chat_id=%s""",
-        (user_id, winner_id, chat_id),
-    )
-    _CON.commit()
+    with get_pg_conn() as conn:
+        conn.execute(
+            """UPDATE chat
+                                SET prev_winners=array_append(prev_winners, %s),
+                                    cur_winner=%s'
+                                WHERE chat_id=%s""",
+            (user_id, winner_id, chat_id),
+        )

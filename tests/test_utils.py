@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
-from datetime import datetime
-
 import pytest
+from pandas import Timestamp
 from pandas.testing import assert_frame_equal
 
-from kipubot import DATABASE_URL
 from kipubot.db import _init_db, delete_chat, delete_raffle_data, save_chat_or_ignore
 from kipubot.utils import (
     get_raffle,
@@ -90,19 +88,19 @@ class TestUtils:
 class TestGraphSave:
     @pytest.fixture(autouse=True)
     def create_chat(self):
-        _init_db(DATABASE_URL)
+        _init_db()
         save_chat_or_ignore(1, "testing", [1])
         yield 1
         delete_chat(1)
 
     def test_graph_save(self):
         file_path = "tests/example_data/example_1.xlsx"
-        start_date = datetime.fromisoformat("2022-08-01 03:15:00")
-        end_date = datetime.fromisoformat("2022-08-12 03:15:00")
+        start_date = Timestamp("2022-08-01 03:15:00")
+        end_date = Timestamp("2022-08-12 03:15:00")
         entry_fee = 1
         df = read_excel_to_df(file_path, start_date, end_date)
         save_raffle(1, start_date, end_date, entry_fee, df)
-        raffle_from_db = get_raffle(1, include_df=True)
+        raffle_from_db = get_raffle(1)
         delete_raffle_data(1)
         assert start_date == raffle_from_db.start_date
         assert end_date == raffle_from_db.end_date

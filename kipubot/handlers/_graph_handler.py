@@ -1,5 +1,3 @@
-from enum import Enum
-
 import psycopg.errors as pserrors
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, filters
@@ -8,14 +6,16 @@ from kipubot.constants import STRINGS
 from kipubot.errors import NoEntriesError, NoRaffleError
 from kipubot.utils import generate_expected, generate_graph
 
+GRAPH_TYPE = dict(
+    expected="expected",
+    odotusarvo="expected",
+    graph="graph",
+    kuvaaja="graph",
+)
 
-class GraphType(Enum):
-    EXPECTED = "expected"
-    GRAPH = "graph"
 
-
-def get_graph_img(graph_type: GraphType) -> str:
-    if graph_type == GraphType.EXPECTED:
+def get_graph_img(graph_type: str) -> str:
+    if graph_type == "expected":
         return "expected.png"
 
     return "graph.png"
@@ -24,14 +24,25 @@ def get_graph_img(graph_type: GraphType) -> str:
 async def graph(
     update: Update,
     _context: ContextTypes.DEFAULT_TYPE,
-    graph_type: GraphType = GraphType.GRAPH,
 ) -> None:
+    if (
+        not update.effective_chat
+        or not update.effective_user
+        or not update.message
+        or not update.message.text
+    ):
+        return None
+
     chat_id = update.effective_chat.id
-    chat_title = update.effective_chat.title
+    chat_title = (
+        update.effective_chat.title if update.effective_chat.title else "untitled chat"
+    )
+    graph_type_text = update.message.text[1::]
+    graph_type = GRAPH_TYPE[graph_type_text]
     graph_path = f"data/{chat_id}/{get_graph_img(graph_type)}"
 
     try:
-        if graph_type == GraphType.EXPECTED:
+        if graph_type == "expected":
             generate_expected(graph_path, chat_id, chat_title)
         else:
             generate_graph(graph_path, chat_id, chat_title)
@@ -54,10 +65,6 @@ async def graph(
         await update.message.reply_text(STRINGS["no_data"] % {"chat_title": chat_title})
 
 
-graph_handler = CommandHandler(["kuvaaja", "graph"], graph, ~filters.ChatType.PRIVATE)
-
-expected_value_handler = CommandHandler(
-    ["odotusarvo", "expected"],
-    lambda u, c: graph(u, c, graph_type=GraphType.EXPECTED),
-    ~filters.ChatType.PRIVATE,
+graph_handler = CommandHandler(
+    ["kuvaaja", "graph", "odotusarvo", "expected"], graph, ~filters.ChatType.PRIVATE
 )

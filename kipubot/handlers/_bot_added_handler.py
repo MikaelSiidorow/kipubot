@@ -8,6 +8,13 @@ from kipubot.db import register_user_or_ignore, save_chat_or_ignore, save_user_o
 
 
 async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if (
+        not update.my_chat_member
+        or not update.effective_chat
+        or not update.effective_user
+    ):
+        return
+
     # when bot is added to channel:
     # -> add the channel to a database
     # -> set the adder as the current winner of the channel
@@ -15,7 +22,11 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if update.my_chat_member.new_chat_member.status != ChatMemberStatus.LEFT:
         chat_id = update.effective_chat.id
-        title = update.effective_chat.title
+        title = (
+            update.effective_chat.title
+            if update.effective_chat.title
+            else "untitled chat"
+        )
         user_id = update.effective_user.id
         admins = await update.effective_chat.get_administrators()
         admin_ids = list(set([admin.user.id for admin in admins] + [user_id]))
