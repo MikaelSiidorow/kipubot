@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""Main kipubot file for running the bot."""
+
 from telegram.ext import ApplicationBuilder, PicklePersistence
 
 from kipubot import config
@@ -18,6 +20,7 @@ from kipubot.handlers import (
 
 
 def main() -> None:
+    """Run the bot with all handlers."""
     # INITIALIZE DB AND CREATE TABLES IF THEY DON'T EXIST
     init_db()
     persistence = PicklePersistence(filepath="data/.pkl")

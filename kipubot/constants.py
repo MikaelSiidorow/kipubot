@@ -1,4 +1,9 @@
-# CONSTANTS
+"""Constants used in the bot.
+
+- EXCEL_MIME: The MIME type of the Excel file sent by MobilePay.
+- STRINGS: A dictionary of strings used in the bot.
+"""
+
 EXCEL_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 STRINGS = {

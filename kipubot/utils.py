@@ -1,3 +1,5 @@
+"""Utility functions for Kipubot."""
+
 import os
 import re
 from typing import Any, NamedTuple
@@ -20,12 +22,16 @@ from kipubot.errors import NoRaffleError
 
 
 class RaffleStatsData(NamedTuple):
+    """Data for raffle stats without entry data."""
+
     start_date: pd.Timestamp
     end_date: pd.Timestamp
     entry_fee: int
 
 
 class RaffleData(NamedTuple):
+    """Data for raffle stats with entry data."""
+
     start_date: pd.Timestamp
     end_date: pd.Timestamp
     entry_fee: int
@@ -33,6 +39,7 @@ class RaffleData(NamedTuple):
 
 
 def is_int(x: str) -> bool:
+    """Safely check if a string is an integer."""
     try:
         int(x)
     except ValueError:
@@ -42,6 +49,7 @@ def is_int(x: str) -> bool:
 
 
 def is_float(x: str) -> bool:
+    """Safely check if a string is a float."""
     try:
         float(x)
     except ValueError:
@@ -51,6 +59,7 @@ def is_float(x: str) -> bool:
 
 
 def int_price_to_str(num: int) -> str:
+    """Format an integer price to a string."""
     float_num = num / 100.0
 
     str_num: str = (
@@ -69,6 +78,7 @@ def int_price_to_str(num: int) -> str:
 
 
 async def get_chat_member_opt(chat: Chat, member_id: int) -> ChatMember | None:
+    """Get a chat member, or None if the user is not in the chat."""
     try:
         return await chat.get_member(member_id)
     except BadRequest as e:
@@ -78,6 +88,7 @@ async def get_chat_member_opt(chat: Chat, member_id: int) -> ChatMember | None:
 
 
 def preband(x, xd, yd, p, func):
+    """Calculate the prediction band for a curve fit."""
     conf = 0.95
     alpha = 1.0 - conf
     quantile = stats.t.ppf(1.0 - alpha / 2.0, xd.size - len(p))
@@ -95,6 +106,7 @@ def preband(x, xd, yd, p, func):
 
 
 def fit_timedata(x_series: "pd.Series[Any]", y_series: "pd.Series[Any]"):
+    """Fit a curve to the data."""
     # ignore the end date in curve fitting
     x = x_series.values[:-1]
     y = y_series.values[:-1]
@@ -126,6 +138,7 @@ def fit_timedata(x_series: "pd.Series[Any]", y_series: "pd.Series[Any]"):
 
 
 def remove_emojis(text: str) -> str:
+    """Remove emojis from a string."""
     emojis = re.compile(
         pattern="["
         "\U0001F600-\U0001F64F"  # emoticons
@@ -139,6 +152,7 @@ def remove_emojis(text: str) -> str:
 
 
 def validate_excel(excel_path: str) -> bool:
+    """Validate that the submitted excel file is in the correct (MP) format."""
     df = pd.read_excel(
         excel_path,
         usecols="A,B,D",
@@ -157,6 +171,7 @@ def validate_excel(excel_path: str) -> bool:
 def read_excel_to_df(
     excel_path: str, start_date: pd.Timestamp, end_date: pd.Timestamp
 ) -> pd.DataFrame:
+    """Read the excel file to a dataframe."""
     df = pd.read_excel(
         excel_path,
         usecols="A,B,D",
@@ -172,18 +187,20 @@ def read_excel_to_df(
 
 
 def get_raffle_stats(chat_id: int) -> RaffleStatsData:
+    """Get the stats of a raffle, not including dataframe."""
     query_result = db.get_raffle_data(chat_id)
 
     if query_result is None:
         error_text = f"No raffle found for chat {chat_id}"
         raise NoRaffleError(error_text)
 
-    _, start_date, end_date, entry_fee, dates, entries, amounts = query_result
+    _, start_date, end_date, entry_fee, _, _, _ = query_result
 
     return RaffleStatsData(start_date, end_date, entry_fee)
 
 
 def get_raffle(chat_id: int) -> RaffleData:
+    """Get the data of a raffle, including dataframe."""
     query_result = db.get_raffle_data(chat_id)
 
     if query_result is None:
@@ -198,6 +215,7 @@ def get_raffle(chat_id: int) -> RaffleData:
 
 
 def get_cur_time_hel() -> pd.Timestamp:
+    """Get the current time in Helsinki as a Timestamp."""
     # take current time in helsinki and convert it to naive time,
     # as mobilepay times are naive (naive = no timezone specified).
     helsinki_tz = pytz.timezone("Europe/Helsinki")
@@ -213,10 +231,12 @@ def save_raffle(
     entry_fee: int,
     df: pd.DataFrame,
 ) -> None:
+    """Save a raffle to the database."""
     db.save_raffle_data(chat_id, start_date, end_date, entry_fee, df)
 
 
 def parse_df_essentials(raffle_data: RaffleData) -> RaffleData:
+    """Parse the essentials of a raffle dataframe."""
     start_date, end_date, fee, df = raffle_data
 
     df.at[start_date, "amount"] = 0
@@ -230,6 +250,7 @@ def parse_df_essentials(raffle_data: RaffleData) -> RaffleData:
 
 
 def parse_expected(raffle_data: RaffleData) -> RaffleData:
+    """Parse the expected values of a raffle dataframe."""
     start_date, end_date, entry_fee, df = parse_df_essentials(raffle_data)
 
     df["win_odds"] = 1.0 / df["unique"]
@@ -247,6 +268,7 @@ def parse_expected(raffle_data: RaffleData) -> RaffleData:
 
 
 def parse_graph(raffle_data: RaffleData) -> RaffleData:
+    """Parse the graph values of a raffle dataframe."""
     df = raffle_data.df
 
     df.at[get_cur_time_hel(), "amount"] = 0
@@ -258,6 +280,7 @@ def parse_graph(raffle_data: RaffleData) -> RaffleData:
 
 
 def configure_and_save_plot(out_img_path: str) -> None:
+    """Configure and save the plot to an image file."""
     ax = plt.gca()
 
     # toggle legend
@@ -280,6 +303,7 @@ def configure_and_save_plot(out_img_path: str) -> None:
 
 
 def generate_graph(out_img_path: str, chat_id: int, chat_title: str) -> None:
+    """Generate a graph of raffle progress."""
     # -- get raffle data --
     raffle_data = get_raffle(chat_id)
 
@@ -320,6 +344,7 @@ def generate_graph(out_img_path: str, chat_id: int, chat_title: str) -> None:
 
 
 def generate_expected(out_img_path: str, chat_id: int, chat_title: str) -> None:
+    """Generate a graph of expected values."""
     # -- get raffle data --
     raffle_data = get_raffle(chat_id)
 

@@ -1,3 +1,5 @@
+"""Database connection and queries for Kipubot."""
+
 import logging
 from contextlib import contextmanager, suppress
 
@@ -17,7 +19,7 @@ _logger = logging.getLogger(__name__)
 
 @contextmanager
 def logging_connection():
-    """Log errors while connecting to the database"""
+    """Log errors while connecting to the database."""
     try:
         _logger.info("Getting db connection...")
         with _pool.connection() as conn:
@@ -31,6 +33,7 @@ def logging_connection():
 
 
 def init_db():
+    """Initialize the database tables if they don't exist."""
     with logging_connection() as conn:
         conn.execute(
             """CREATE TABLE IF NOT EXISTS chat (
@@ -70,6 +73,7 @@ def init_db():
 
 
 def get_registered_member_ids(chat_id: int) -> list[int]:
+    """Get a list of all registered user IDs in a chat."""
     with logging_connection() as conn:
         return [
             row[0]
@@ -83,6 +87,7 @@ def get_registered_member_ids(chat_id: int) -> list[int]:
 
 
 def get_admin_ids(chat_id: int) -> list[int]:
+    """Get a list of all admin IDs in a chat."""
     with logging_connection() as conn:
         data = conn.execute(
             "SELECT admins FROM chat WHERE chat_id = %s", (chat_id,)
@@ -91,6 +96,7 @@ def get_admin_ids(chat_id: int) -> list[int]:
 
 
 def get_prev_winner_ids(chat_id: int) -> list[int]:
+    """Get a list of all previous winner IDs in a chat."""
     with logging_connection() as conn:
         data = conn.execute(
             "SELECT prev_winners FROM chat WHERE chat_id = %s", (chat_id,)
@@ -99,6 +105,7 @@ def get_prev_winner_ids(chat_id: int) -> list[int]:
 
 
 def get_winner_id(chat_id: int) -> int:
+    """Get the current winner ID in a chat."""
     with logging_connection() as conn:
         data = conn.execute(
             "SELECT cur_winner FROM chat WHERE chat_id = %s", (chat_id,)
@@ -107,6 +114,7 @@ def get_winner_id(chat_id: int) -> int:
 
 
 def get_chats_where_winner(user_id: int) -> list[tuple[int, str]]:
+    """Get a list of all chats where a user is the current winner."""
     with logging_connection() as conn:
         return conn.execute(
             """SELECT c.chat_id, c.title
@@ -121,6 +129,7 @@ def get_chats_where_winner(user_id: int) -> list[tuple[int, str]]:
 def get_raffle_data(
     chat_id: int,
 ) -> tuple[int, Timestamp, Timestamp, int, list[Timestamp], list[str], list[int]]:
+    """Get the raffle data for a chat."""
     with logging_connection() as conn:
         return conn.execute(
             "SELECT * FROM raffle WHERE chat_id = %s", [chat_id]
@@ -134,6 +143,7 @@ def save_raffle_data(
     entry_fee: int,
     df: DataFrame,
 ) -> None:
+    """Save the raffle data for a chat."""
     dates = df["date"].tolist()
     entries = df["name"].tolist()
     amounts = df["amount"].tolist()
@@ -157,12 +167,14 @@ def save_raffle_data(
 
 
 def delete_raffle_data(chat_id: int):
+    """Delete the raffle data for a chat."""
     with logging_connection() as conn:
         conn.execute("""DELETE FROM raffle where chat_id=%s""", (chat_id,))
         conn.commit()
 
 
 def save_user_or_ignore(user_id: int) -> None:
+    """Save a user to the database, or ignore if already exists."""
     with logging_connection() as conn:
         conn.execute(
             """INSERT INTO chat_user
@@ -174,6 +186,7 @@ def save_user_or_ignore(user_id: int) -> None:
 
 
 def save_chat_or_ignore(chat_id: int, title: str, admin_ids: list[int]) -> None:
+    """Save a chat to the database, or ignore if already exists."""
     with logging_connection() as conn:
         conn.execute(
             """INSERT INTO chat (chat_id, title, admins)
@@ -185,12 +198,14 @@ def save_chat_or_ignore(chat_id: int, title: str, admin_ids: list[int]) -> None:
 
 
 def delete_chat(chat_id: int):
+    """Delete a chat from the database."""
     with logging_connection() as conn:
         conn.execute("""DELETE FROM chat where chat_id=%s""", (chat_id,))
         conn.commit()
 
 
 def register_user(chat_id: int, user_id: int) -> None:
+    """Register a user in a chat."""
     save_user_or_ignore(user_id)
 
     with logging_connection() as conn:
@@ -208,11 +223,16 @@ def register_user(chat_id: int, user_id: int) -> None:
 
 
 def register_user_or_ignore(chat_id: int, user_id: int) -> None:
+    """Register a user in a chat, or ignore if already registered."""
     with suppress(AlreadyRegisteredError):
         register_user(chat_id, user_id)
 
 
 def admin_cycle_winners(winner_id: int, chat_id: int) -> None:
+    """Admin set current winner to a specific user.
+
+    Move the previous winner to the list of previous winners.
+    """
     with logging_connection() as conn:
         conn.execute(
             """UPDATE chat
@@ -225,6 +245,7 @@ def admin_cycle_winners(winner_id: int, chat_id: int) -> None:
 
 
 def replace_cur_winner(winner_id: int, chat_id: int) -> None:
+    """Replace the current winner in a chat."""
     with logging_connection() as conn:
         conn.execute(
             """UPDATE chat
@@ -235,6 +256,10 @@ def replace_cur_winner(winner_id: int, chat_id: int) -> None:
 
 
 def cycle_winners(user_id: int, winner_id: int, chat_id: int) -> None:
+    """Set the current winner in a chat.
+
+    Move the previous winner to the list of previous winners.
+    """
     with logging_connection() as conn:
         conn.execute(
             """UPDATE chat

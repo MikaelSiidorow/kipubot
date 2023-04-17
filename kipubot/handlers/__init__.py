@@ -1,3 +1,5 @@
+"""Handlers for Kipubot."""
+
 __all__ = (
     "start_handler",
     "moro_handler",

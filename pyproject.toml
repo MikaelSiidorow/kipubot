@@ -60,6 +60,7 @@ select = [
   "C90",
   "DTZ",
   "E",
+  "D",
   "EM",
   "F",
   "FBT",
@@ -81,7 +82,7 @@ select = [
   "W",
   "YTT",
 ]
-ignore = []
+ignore = ["D203", "D213"]
 
 fixable = [
   "A",
@@ -166,7 +167,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 max-complexity = 10
 
 [tool.ruff.per-file-ignores]
-"tests/*" = ["S101"]
+"tests/*" = ["S101", "D"]
 
 [tool.mypy]
 python_version = "3.10"
