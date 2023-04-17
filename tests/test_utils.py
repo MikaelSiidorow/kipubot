@@ -4,8 +4,16 @@ import pytest
 from pandas import Timestamp
 from pandas.testing import assert_frame_equal
 
-from kipubot.db import delete_chat, delete_raffle_data, init_db, save_chat_or_ignore
+from kipubot.db import (
+    delete_chat,
+    delete_raffle_data,
+    init_db,
+    register_user,
+    save_chat_or_ignore,
+    save_user_or_ignore,
+)
 from kipubot.utils import (
+    RaffleData,
     get_raffle,
     int_price_to_str,
     read_excel_to_df,
@@ -90,6 +98,8 @@ class TestGraphSave:
     def create_chat(self):
         init_db()
         save_chat_or_ignore(1, "testing", [1])
+        save_user_or_ignore(1)
+        register_user(1, 1)
         yield 1
         delete_chat(1)
 
@@ -99,7 +109,8 @@ class TestGraphSave:
         end_date = Timestamp("2022-08-12 03:15:00")
         entry_fee = 1
         df = read_excel_to_df(file_path, start_date, end_date)
-        save_raffle(1, start_date, end_date, entry_fee, df)
+        raffle_data = RaffleData(start_date, end_date, entry_fee, df)
+        save_raffle(1, 1, raffle_data)
         raffle_from_db = get_raffle(1)
         delete_raffle_data(1)
         assert start_date == raffle_from_db.start_date

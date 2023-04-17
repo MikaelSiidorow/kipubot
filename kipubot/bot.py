@@ -8,6 +8,7 @@ from kipubot import config
 from kipubot.db import init_db
 from kipubot.handlers import (
     bot_added_handler,
+    close_handler,
     error_handler,
     excel_file_handler,
     graph_handler,
@@ -35,6 +36,7 @@ def main() -> None:
     app.add_handler(moro_handler)
     app.add_handler(graph_handler)
     app.add_handler(winner_handler)
+    app.add_handler(close_handler)
 
     # warning about using a command in a private chat
     app.add_handler(no_dm_handler)

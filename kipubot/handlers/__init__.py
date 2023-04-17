@@ -10,9 +10,11 @@ __all__ = (
     "raffle_setup_handler",
     "no_dm_handler",
     "error_handler",
+    "close_handler",
 )
 
 from ._bot_added_handler import bot_added_handler
+from ._close_handler import close_handler
 from ._error_handler import error_handler
 from ._excel_file_handler import excel_file_handler
 from ._graph_handler import graph_handler

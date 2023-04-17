@@ -8,6 +8,7 @@ from telegram.ext import CommandHandler, ContextTypes, filters
 from kipubot.constants import STRINGS
 from kipubot.db import (
     admin_cycle_winners,
+    close_raffle,
     cycle_winners,
     get_admin_ids,
     get_prev_winner_ids,
@@ -88,6 +89,8 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         # winner: moves themselves to prev and makes new current
         else:
             cycle_winners(user_id, winner_id, chat_id)
+
+        close_raffle(chat_id)
     except pserrors.Error:
         _logger.exception("SQLite Error:")
         await update.message.reply_text(STRINGS["user_not_found"])

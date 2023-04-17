@@ -8,6 +8,7 @@ from telegram.ext import CallbackQueryHandler, ContextTypes, ConversationHandler
 from kipubot.constants import STRINGS
 from kipubot.errors import NoRaffleError
 from kipubot.utils import (
+    RaffleData,
     get_cur_time_hel,
     get_raffle_stats,
     int_price_to_str,
@@ -15,6 +16,7 @@ from kipubot.utils import (
     is_int,
     read_excel_to_df,
     save_raffle,
+    update_raffle,
 )
 
 # ==================
@@ -68,11 +70,6 @@ RAFFLE_FEE_UPDATE_DATA_LENGTH = 4
 def raffle_keyboard(*, has_existing: bool = False) -> InlineKeyboardMarkup:
     if has_existing:
         keyboard = [
-            [
-                InlineKeyboardButton(
-                    STRINGS["new_raffle_button"], callback_data="raffle:setup:new"
-                )
-            ],
             [
                 InlineKeyboardButton(
                     STRINGS["update_raffle_button"], callback_data="raffle:setup:old"
@@ -370,10 +367,11 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         chat_id = context.user_data["raffle_chat_id"]
         dm_id = update.effective_chat.id
 
-        start_date, end_date, entry_fee = get_raffle_stats(chat_id)
+        raffle_id, (start_date, end_date, entry_fee) = get_raffle_stats(chat_id)
         excel_path = f"data/{dm_id}/data.xlsx"
         df = read_excel_to_df(excel_path, start_date, end_date)
-        save_raffle(chat_id, start_date, end_date, entry_fee, df)
+        raffle_data = RaffleData(start_date, end_date, entry_fee, df)
+        update_raffle(raffle_id, raffle_data)
 
         await query.message.edit_text(
             STRINGS["updated_raffle"] % {"chat_title": chat_title}
@@ -392,13 +390,15 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     if query.data == "raffle:fee:confirmed":
         chat_title = context.user_data["raffle_chat_title"]
         chat_id = context.user_data["raffle_chat_id"]
+        user_id = update.effective_user.id
         start_date = context.user_data["raffle_start_date"]
         end_date = context.user_data["raffle_end_date"]
         fee = context.user_data["raffle_fee"]
 
         excel_path = f"data/{dm_id}/data.xlsx"
         df = read_excel_to_df(excel_path, start_date, end_date)
-        save_raffle(chat_id, start_date, end_date, fee, df)
+        raffle_data = RaffleData(start_date, end_date, fee, df)
+        save_raffle(chat_id, user_id, raffle_data)
 
         msg = (
             STRINGS["raffle_setup_base"]

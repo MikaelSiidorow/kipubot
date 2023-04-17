@@ -18,7 +18,7 @@ from telegram import Chat, ChatMember
 from telegram.error import BadRequest
 
 from kipubot import db
-from kipubot.errors import NoRaffleError
+from kipubot.errors import NoEntriesError, NoRaffleError
 
 
 class RaffleStatsData(NamedTuple):
@@ -186,7 +186,7 @@ def read_excel_to_df(
     return df
 
 
-def get_raffle_stats(chat_id: int) -> RaffleStatsData:
+def get_raffle_stats(chat_id: int) -> tuple[str, RaffleStatsData]:
     """Get the stats of a raffle, not including dataframe."""
     query_result = db.get_raffle_data(chat_id)
 
@@ -194,9 +194,9 @@ def get_raffle_stats(chat_id: int) -> RaffleStatsData:
         error_text = f"No raffle found for chat {chat_id}"
         raise NoRaffleError(error_text)
 
-    _, start_date, end_date, entry_fee, _, _, _ = query_result
+    raffle_id, start_date, end_date, _, entry_fee, _, _, _, _, _ = query_result
 
-    return RaffleStatsData(start_date, end_date, entry_fee)
+    return (raffle_id, RaffleStatsData(start_date, end_date, entry_fee))
 
 
 def get_raffle(chat_id: int) -> RaffleData:
@@ -207,7 +207,11 @@ def get_raffle(chat_id: int) -> RaffleData:
         error_text = f"No raffle found for chat {chat_id}"
         raise NoRaffleError(error_text)
 
-    _, start_date, end_date, entry_fee, dates, entries, amounts = query_result
+    _, start_date, end_date, _, entry_fee, dates, entries, amounts, _, _ = query_result
+
+    if len(dates) == 0 or len(entries) == 0 or len(amounts) == 0:
+        error_text = f"No entries found for chat {chat_id}"
+        raise NoEntriesError(error_text)
 
     df = pd.DataFrame(data={"date": dates, "name": entries, "amount": amounts})
     df.set_index("date", inplace=True)
@@ -226,13 +230,19 @@ def get_cur_time_hel() -> pd.Timestamp:
 
 def save_raffle(
     chat_id: int,
-    start_date: pd.Timestamp,
-    end_date: pd.Timestamp,
-    entry_fee: int,
-    df: pd.DataFrame,
+    user_id: int,
+    raffle_data: RaffleData,
 ) -> None:
     """Save a raffle to the database."""
-    db.save_raffle_data(chat_id, start_date, end_date, entry_fee, df)
+    db.save_raffle_data(chat_id, user_id, raffle_data)
+
+
+def update_raffle(
+    raffle_id: str,
+    raffle_data: RaffleData,
+) -> None:
+    """Update a raffle in the database."""
+    db.update_raffle_data(raffle_id, raffle_data)
 
 
 def parse_df_essentials(raffle_data: RaffleData) -> RaffleData:

@@ -4,11 +4,12 @@ import logging
 from contextlib import contextmanager, suppress
 
 import psycopg.errors as pserrors
-from pandas import DataFrame, Timestamp
+from pandas import Timestamp
 from psycopg_pool import ConnectionPool
 
 from kipubot import config
 from kipubot.errors import AlreadyRegisteredError
+from kipubot.utils import RaffleData
 
 _pool = ConnectionPool(
     config.DATABASE_URL,
@@ -61,14 +62,27 @@ def init_db():
 
         conn.execute(
             """CREATE TABLE IF NOT EXISTS raffle (
-                        chat_id BIGINT PRIMARY KEY REFERENCES chat(chat_id),
+                        raffle_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                         start_date TIMESTAMP,
                         end_date TIMESTAMP,
+                        active BOOLEAN DEFAULT TRUE,
                         entry_fee INTEGER,
                         dates TIMESTAMP[],
                         entries VARCHAR(128)[],
-                        amounts INTEGER[]
+                        amounts INTEGER[],
+                        chat_id BIGINT REFERENCES chat(chat_id),
+                        user_id BIGINT REFERENCES chat_user(user_id)
+
                     )"""
+        )
+
+        conn.execute(
+            """CREATE INDEX IF NOT EXISTS raffle_chat_id_idx ON raffle (chat_id)"""
+        )
+
+        conn.execute(
+            """CREATE UNIQUE INDEX IF NOT EXISTS raffle_chat_id_active
+                ON raffle (chat_id) WHERE active = TRUE"""
         )
 
 
@@ -128,22 +142,39 @@ def get_chats_where_winner(user_id: int) -> list[tuple[int, str]]:
 
 def get_raffle_data(
     chat_id: int,
-) -> tuple[int, Timestamp, Timestamp, int, list[Timestamp], list[str], list[int]]:
-    """Get the raffle data for a chat."""
+) -> tuple[
+    str,
+    Timestamp,
+    Timestamp,
+    bool,
+    int,
+    list[Timestamp],
+    list[str],
+    list[int],
+    int,
+    int,
+]:
+    """Get the raffle data for a chat.
+
+    Returns
+    -------
+        Tuple of the raffle_id, chat_id, start date, end date,
+        entry fee, dates, entries, and amounts.
+    """
     with logging_connection() as conn:
         return conn.execute(
-            "SELECT * FROM raffle WHERE chat_id = %s", [chat_id]
+            """SELECT * FROM raffle WHERE chat_id = %s AND active = true""",
+            [chat_id],
         ).fetchone()
 
 
 def save_raffle_data(
     chat_id: int,
-    start_date: Timestamp,
-    end_date: Timestamp,
-    entry_fee: int,
-    df: DataFrame,
+    user_id: int,
+    raffle_data: RaffleData,
 ) -> None:
     """Save the raffle data for a chat."""
+    start_date, end_date, entry_fee, df = raffle_data
     dates = df["date"].tolist()
     entries = df["name"].tolist()
     amounts = df["amount"].tolist()
@@ -151,16 +182,60 @@ def save_raffle_data(
     with logging_connection() as conn:
         conn.execute(
             """INSERT INTO raffle
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (chat_id)
-                        DO UPDATE SET
-                            start_date = EXCLUDED.start_date,
-                            end_date = EXCLUDED.end_date,
-                            entry_fee = EXCLUDED.entry_fee,
-                            dates = EXCLUDED.dates,
-                            entries = EXCLUDED.entries,
-                            amounts = EXCLUDED.amounts""",
-            (chat_id, start_date, end_date, entry_fee, dates, entries, amounts),
+                        (start_date, end_date, entry_fee,
+                        dates, entries, amounts, chat_id, user_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (
+                start_date,
+                end_date,
+                entry_fee,
+                dates,
+                entries,
+                amounts,
+                chat_id,
+                user_id,
+            ),
+        )
+
+        conn.commit()
+
+
+def update_raffle_data(
+    raffle_id: str,
+    raffle_data: RaffleData,
+) -> None:
+    """Update the raffle data for a chat."""
+    start_date, end_date, entry_fee, df = raffle_data
+    dates = df["date"].tolist()
+    entries = df["name"].tolist()
+    amounts = df["amount"].tolist()
+
+    with logging_connection() as conn:
+        conn.execute(
+            """UPDATE raffle
+                SET start_date = %s,
+                    end_date = %s,
+                    entry_fee = %s,
+                    dates = %s,
+                    entries = %s,
+                    amounts = %s
+                WHERE raffle_id = %s""",
+            (start_date, end_date, entry_fee, dates, entries, amounts, raffle_id),
+        )
+
+        conn.commit()
+
+
+def close_raffle(
+    chat_id: int,
+) -> None:
+    """Close a raffle."""
+    with logging_connection() as conn:
+        conn.execute(
+            """UPDATE raffle
+                SET active = false
+                WHERE chat_id = %s AND active = true""",
+            (chat_id,),
         )
 
         conn.commit()
