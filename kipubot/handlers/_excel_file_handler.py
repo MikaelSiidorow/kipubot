@@ -1,16 +1,14 @@
 import os
-from typing import Optional
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler
-import telegram.ext.filters as Filters
-from kipubot.constants import EXCEL_MIME, STRINGS
-from kipubot.utils import validate_excel
+
+from kipubot.constants import STRINGS
 from kipubot.db import get_chats_where_winner
+from kipubot.utils import validate_excel
 
 
-async def excel_file(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> Optional[str]:
+async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str | None:
     user_id = update.effective_user.id
     dm_id = update.effective_chat.id
 
@@ -58,6 +56,4 @@ async def excel_file(
     )
 
 
-excel_file_handler = MessageHandler(
-    Filters.Document.MimeType(EXCEL_MIME) & Filters.ChatType.PRIVATE, excel_file
-)
+excel_file_handler = MessageHandler()

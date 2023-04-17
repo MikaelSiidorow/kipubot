@@ -1,10 +1,12 @@
-import logging
 import html
-import traceback
 import json
+import logging
+import traceback
+
 from telegram import Update
-from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
+
 from kipubot import DEVELOPER_CHAT_ID
 from kipubot.constants import STRINGS
 
@@ -15,7 +17,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     """Log the error and send a telegram message to notify the developer."""
     # Log the error before we do anything else,
     # so we can see it even if something breaks.
-    _logger.error(msg="Exception while handling an update:", exc_info=context.error)
+    _logger.error("Exception while handling an update:", exc_info=context.error)
 
     # traceback.format_exception returns the usual python message about an exception,
     # but as a list of strings rather than a single string,

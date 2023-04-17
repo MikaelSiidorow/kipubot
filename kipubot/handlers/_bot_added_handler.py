@@ -1,9 +1,10 @@
+import psycopg.errors as pserrors
 from telegram import Update
-from telegram.ext import ContextTypes, ChatMemberHandler
 from telegram.constants import ChatMemberStatus
-import psycopg.errors as PSErrors
+from telegram.ext import ChatMemberHandler, ContextTypes
+
 from kipubot.constants import STRINGS
-from kipubot.db import save_chat_or_ignore, save_user_or_ignore, register_user_or_ignore
+from kipubot.db import register_user_or_ignore, save_chat_or_ignore, save_user_or_ignore
 
 
 async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -24,7 +25,7 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             save_user_or_ignore(user_id)
             register_user_or_ignore(chat_id, user_id)
 
-        except PSErrors.IntegrityError as e:
+        except pserrors.IntegrityError as e:
             print("SQLite Error: " + str(e))
             await context.bot.send_message(
                 chat_id=chat_id, text=STRINGS["unknown_error"]

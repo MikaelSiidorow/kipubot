@@ -1,19 +1,26 @@
+import logging
+
+import psycopg.errors as pserrors
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
 from telegram.constants import MessageEntityType
-import telegram.ext.filters as Filters
-import psycopg.errors as PSErrors
+from telegram.ext import CommandHandler, ContextTypes, filters
+
 from kipubot.constants import STRINGS
 from kipubot.db import (
     admin_cycle_winners,
     cycle_winners,
-    get_registered_member_ids,
     get_admin_ids,
     get_prev_winner_ids,
+    get_registered_member_ids,
     get_winner_id,
     replace_cur_winner,
 )
 from kipubot.utils import get_chat_member_opt
+
+_logger = logging.getLogger(__name__)
+
+
+TWO_ENTITIES = 2
 
 
 async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -25,7 +32,7 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
 
-    if len(ent) != 2 or ent[1].type != MessageEntityType.MENTION:
+    if len(ent) != TWO_ENTITIES or ent[1].type != MessageEntityType.MENTION:
         await update.message.reply_text(STRINGS["invalid_winner_usage"])
         return
 
@@ -44,8 +51,8 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
         registered_member_ids = get_registered_member_ids(chat_id)
         registered_members = [
-            await get_chat_member_opt(update.effective_chat, id)
-            for id in registered_member_ids
+            await get_chat_member_opt(update.effective_chat, member_id)
+            for member_id in registered_member_ids
         ]
         # drop None values
         registered_members = [m for m in registered_members if m]
@@ -72,8 +79,8 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         # winner: moves themselves to prev and makes new current
         else:
             cycle_winners(user_id, winner_id, chat_id)
-    except PSErrors.Error as e:
-        print(e)
+    except pserrors.Error:
+        _logger.exception("SQLite Error:")
         await update.message.reply_text(STRINGS["user_not_found"])
         return
 
@@ -83,5 +90,5 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 winner_handler = CommandHandler(
-    ["voittaja", "winner"], winner, ~Filters.ChatType.PRIVATE
+    ["voittaja", "winner"], winner, ~filters.ChatType.PRIVATE
 )

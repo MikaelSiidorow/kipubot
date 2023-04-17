@@ -1,7 +1,9 @@
+import logging
 import os
 import sys
-import logging
+
 from dotenv import load_dotenv
+
 import kipubot.db
 
 load_dotenv()

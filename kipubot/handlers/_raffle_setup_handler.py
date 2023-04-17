@@ -1,19 +1,21 @@
 import os
-from typing import Optional, Union
+from typing import Literal
+
 import pandas as pd
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ConversationHandler, CallbackQueryHandler, CallbackContext
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackContext, CallbackQueryHandler, ConversationHandler
+
 from kipubot.constants import STRINGS
-from kipubot.utils import (
-    get_raffle,
-    save_raffle,
-    read_excel_to_df,
-    is_int,
-    is_float,
-    get_cur_time_hel,
-    int_price_to_str,
-)
 from kipubot.errors import NoRaffleError
+from kipubot.utils import (
+    get_cur_time_hel,
+    get_raffle,
+    int_price_to_str,
+    is_float,
+    is_int,
+    read_excel_to_df,
+    save_raffle,
+)
 
 # ==================
 # = UTIL FUNCTIONS =
@@ -46,9 +48,12 @@ async def convo_timeout(update: Update, context: CallbackContext) -> int:
 
 # KEYBOARD COMPONENTS
 # --------------------
+RAFFLE_CHAT_SELECTED_DATA_LENGTH = 4
+RAFFLE_DATE_UPDATE_DATA_LENGTH = 5
+RAFFLE_FEE_UPDATE_DATA_LENGTH = 4
 
 
-def raffle_keyboard(has_existing: bool = False) -> InlineKeyboardMarkup:
+def raffle_keyboard(*, has_existing: bool = False) -> InlineKeyboardMarkup:
     if has_existing:
         keyboard = [
             [
@@ -80,10 +85,7 @@ def raffle_keyboard(has_existing: bool = False) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def date_keyboard(which: str) -> InlineKeyboardMarkup:
-    if which not in ["start", "end"]:
-        raise Exception("Invalid date type, should be start or end!")
-
+def date_keyboard(which: Literal["start", "end"]) -> InlineKeyboardMarkup:
     rough_controls = [
         InlineKeyboardButton("-1 d", callback_data=f"raffle:date:{which}:update:-24"),
         InlineKeyboardButton("-12 h", callback_data=f"raffle:date:{which}:update:-12"),
@@ -145,7 +147,7 @@ def fee_keyboard() -> InlineKeyboardMarkup:
 # =================
 
 
-async def setup_raffle(update: Update, context: CallbackContext) -> Union[str, int]:
+async def setup_raffle(update: Update, context: CallbackContext) -> str | int:
     query = update.callback_query
 
     if query.data == "raffle:cancel":
@@ -153,7 +155,7 @@ async def setup_raffle(update: Update, context: CallbackContext) -> Union[str, i
 
     if (
         query.data.startswith("raffle:chat_selected")
-        and len(query.data.split(":")) == 4
+        and len(query.data.split(":")) == RAFFLE_CHAT_SELECTED_DATA_LENGTH
         and is_int(query.data.split(":")[2])
     ):
         args = query.data.split(":")
@@ -189,7 +191,7 @@ async def setup_raffle(update: Update, context: CallbackContext) -> Union[str, i
     return await convo_error(update, context)
 
 
-async def setup_start_date(update: Update, context: CallbackContext) -> Optional[str]:
+async def setup_start_date(update: Update, context: CallbackContext) -> str | None:
     query = update.callback_query
 
     if query.data == "raffle:setup:new":
@@ -197,7 +199,7 @@ async def setup_start_date(update: Update, context: CallbackContext) -> Optional
 
     if (
         query.data.startswith("raffle:date:start:update")
-        and len(query.data.split(":")) == 5
+        and len(query.data.split(":")) == RAFFLE_DATE_UPDATE_DATA_LENGTH
         and is_float(query.data.split(":")[4])
     ):
         diff = float(query.data.split(":")[4])
@@ -224,7 +226,7 @@ async def setup_start_date(update: Update, context: CallbackContext) -> Optional
     return None
 
 
-async def setup_end_date(update: Update, context: CallbackContext) -> Optional[str]:
+async def setup_end_date(update: Update, context: CallbackContext) -> str | None:
     query = update.callback_query
 
     if query.data == "raffle:date:start:confirmed":
@@ -232,7 +234,7 @@ async def setup_end_date(update: Update, context: CallbackContext) -> Optional[s
 
     if (
         query.data.startswith("raffle:date:end:update")
-        and len(query.data.split(":")) == 5
+        and len(query.data.split(":")) == RAFFLE_DATE_UPDATE_DATA_LENGTH
         and is_float(query.data.split(":")[4])
     ):
         diff = float(query.data.split(":")[4])
@@ -273,7 +275,7 @@ async def setup_end_date(update: Update, context: CallbackContext) -> Optional[s
     return None
 
 
-async def setup_fee(update: Update, context: CallbackContext) -> Optional[str]:
+async def setup_fee(update: Update, context: CallbackContext) -> str | None:
     query = update.callback_query
 
     if query.data == "raffle:date:end:confirmed":
@@ -281,7 +283,7 @@ async def setup_fee(update: Update, context: CallbackContext) -> Optional[str]:
 
     if (
         query.data.startswith("raffle:fee:update")
-        and len(query.data.split(":")) == 4
+        and len(query.data.split(":")) == RAFFLE_FEE_UPDATE_DATA_LENGTH
         and is_int(query.data.split(":")[3])
     ):
         diff = int(query.data.split(":")[3])
@@ -324,7 +326,7 @@ async def setup_fee(update: Update, context: CallbackContext) -> Optional[str]:
     return None
 
 
-async def finish_setup(update: Update, context: CallbackContext) -> Optional[int]:
+async def finish_setup(update: Update, context: CallbackContext) -> int | None:
     query = update.callback_query
     dm_id = update.effective_chat.id
 

@@ -1,6 +1,6 @@
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
-import telegram.ext.filters as Filters
+from telegram.ext import CommandHandler, ContextTypes, filters
+
 from kipubot.constants import STRINGS
 from kipubot.db import register_user
 from kipubot.errors import AlreadyRegisteredError
@@ -25,4 +25,4 @@ async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
-moro_handler = CommandHandler(["moro", "hello"], hello, ~Filters.ChatType.PRIVATE)
+moro_handler = CommandHandler(["moro", "hello"], hello, ~filters.ChatType.PRIVATE)

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 
-import pytest
 from datetime import datetime
-from kipubot.db import delete_chat, delete_raffle_data, save_chat_or_ignore, _init_db
-from kipubot import DATABASE_URL
+
+import pytest
 from pandas.testing import assert_frame_equal
+
+from kipubot import DATABASE_URL
+from kipubot.db import _init_db, delete_chat, delete_raffle_data, save_chat_or_ignore
 from kipubot.utils import (
     get_raffle,
     int_price_to_str,
-    remove_emojis,
     read_excel_to_df,
+    remove_emojis,
     save_raffle,
 )
 
@@ -100,7 +102,7 @@ class TestGraphSave:
         entry_fee = 1
         df = read_excel_to_df(file_path, start_date, end_date)
         save_raffle(1, start_date, end_date, entry_fee, df)
-        raffle_from_db = get_raffle(1, True)
+        raffle_from_db = get_raffle(1, include_df=True)
         delete_raffle_data(1)
         assert start_date == raffle_from_db.start_date
         assert end_date == raffle_from_db.end_date

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 from telegram.ext import ApplicationBuilder, PicklePersistence
+
 from kipubot import BOT_TOKEN
 from kipubot.handlers import (
-    start_handler,
-    moro_handler,
-    excel_file_handler,
     bot_added_handler,
-    winner_handler,
-    graph_handler,
-    expected_value_handler,
-    raffle_setup_handler,
-    no_dm_handler,
     error_handler,
+    excel_file_handler,
+    expected_value_handler,
+    graph_handler,
+    moro_handler,
+    no_dm_handler,
+    raffle_setup_handler,
+    start_handler,
+    winner_handler,
 )
 
 

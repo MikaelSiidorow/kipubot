@@ -1,6 +1,6 @@
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler
-import telegram.ext.filters as Filters
+from telegram.ext import CommandHandler, ContextTypes, filters
+
 from kipubot.constants import STRINGS
 
 
@@ -11,5 +11,5 @@ async def chat_only(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None
 no_dm_handler = CommandHandler(
     ["moro", "hello", "kuvaaja", "graph", "voittaja", "winner"],
     chat_only,
-    Filters.ChatType.PRIVATE,
+    filters.ChatType.PRIVATE,
 )

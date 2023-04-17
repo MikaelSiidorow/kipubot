@@ -1,43 +1,47 @@
 import os
 import re
-from typing import NamedTuple, Optional
-import pytz
-import matplotlib.pyplot as plt
+from typing import NamedTuple
+
 import matplotlib.dates as mdates
-from matplotlib.ticker import AutoMinorLocator
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
-from scipy import stats
-from scipy.optimize import curve_fit
+import pandas as pd
+import pytz
 import uncertainties as unc
 import uncertainties.unumpy as unp
-from telegram import ChatMember, Chat
+from matplotlib.ticker import AutoMinorLocator
+from scipy import stats
+from scipy.optimize import curve_fit
+from telegram import Chat, ChatMember
 from telegram.error import BadRequest
-from kipubot.errors import NoRaffleError
+
 from kipubot import db
+from kipubot.errors import NoRaffleError
 
 
 class RaffleData(NamedTuple):
     start_date: pd.Timestamp
     end_date: pd.Timestamp
     entry_fee: int
-    df: Optional[pd.DataFrame]
+    df: pd.DataFrame | None
 
 
 def is_int(x: str) -> bool:
     try:
         int(x)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 def is_float(x: str) -> bool:
     try:
         float(x)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 def int_price_to_str(num: int) -> str:
@@ -56,13 +60,13 @@ def int_price_to_str(num: int) -> str:
     return str_num
 
 
-async def get_chat_member_opt(chat: Chat, member_id: int) -> Optional[ChatMember]:
+async def get_chat_member_opt(chat: Chat, member_id: int) -> ChatMember | None:
     try:
         return await chat.get_member(member_id)
     except BadRequest as e:
         if e.message == "User not found":
             return None
-        raise e
+        raise
 
 
 def preband(x, xd, yd, p, func):
@@ -162,11 +166,12 @@ def read_excel_to_df(
     return df
 
 
-def get_raffle(chat_id: int, include_df: bool = False) -> RaffleData:
+def get_raffle(chat_id: int, *, include_df: bool = False) -> RaffleData:
     query_result = db.get_raffle_data(chat_id)
 
     if query_result is None:
-        raise NoRaffleError(f"No raffle found for chat {chat_id}")
+        error_text = f"No raffle found for chat {chat_id}"
+        raise NoRaffleError(error_text)
 
     _, start_date, end_date, entry_fee, dates, entries, amounts = query_result
 
@@ -216,10 +221,8 @@ def parse_expected(raffle_data: RaffleData) -> RaffleData:
     df["win_odds"] = 1.0 / df["unique"]
     df["next_expected"] = (
         (
-            (
-                -entry_fee * (1 - df["win_odds"])
-                + (df["amount"] - entry_fee) * df["win_odds"]
-            )
+            -entry_fee * (1 - df["win_odds"])
+            + (df["amount"] - entry_fee) * df["win_odds"]
         )
         .fillna(0)
         .round()

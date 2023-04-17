@@ -1,19 +1,21 @@
 import logging
-from typing import Tuple, List, Optional
-from pandas import Timestamp, DataFrame
+from contextlib import suppress
+
 import psycopg
-import psycopg.errors as PSErrors
+import psycopg.errors as pserrors
+from pandas import DataFrame, Timestamp
+
 from kipubot.errors import AlreadyRegisteredError
 
 # STORE DB CONNECTION
-_CON: Optional[psycopg.Connection] = None
+_CON: psycopg.Connection | None = None
 
 # LOGGER
 _logger = logging.getLogger(__name__)
 
 
 def _init_db(url: str) -> None:
-    global _CON  # pylint: disable=global-statement
+    global _CON  # noqa: PLW0603
 
     if not _CON:
         _logger.info("Connecting to DB...")
@@ -57,16 +59,15 @@ def _init_db(url: str) -> None:
                         amounts INTEGER[]
                     )"""
         )
-    except PSErrors.Error as e:
-        _logger.error("Unknown error during database initialization:")
-        _logger.error(e)
+    except pserrors.Error:
+        _logger.exception("Unknown error during database initialization!")
         _CON.rollback()
     else:
         _logger.info("Database succesfully initialized!")
         _CON.commit()
 
 
-def get_registered_member_ids(chat_id: int) -> List[int]:
+def get_registered_member_ids(chat_id: int) -> list[int]:
     return [
         row[0]
         for row in _CON.execute(
@@ -78,13 +79,13 @@ def get_registered_member_ids(chat_id: int) -> List[int]:
     ]
 
 
-def get_admin_ids(chat_id: int) -> List[int]:
+def get_admin_ids(chat_id: int) -> list[int]:
     return _CON.execute(
         "SELECT admins FROM chat WHERE chat_id = %s", (chat_id,)
     ).fetchone()[0]
 
 
-def get_prev_winner_ids(chat_id: int) -> List[int]:
+def get_prev_winner_ids(chat_id: int) -> list[int]:
     return _CON.execute(
         "SELECT prev_winners FROM chat WHERE chat_id = %s", (chat_id,)
     ).fetchone()[0]
@@ -96,7 +97,7 @@ def get_winner_id(chat_id: int) -> int:
     ).fetchone()[0]
 
 
-def get_chats_where_winner(user_id: int) -> List[Tuple[int, str]]:
+def get_chats_where_winner(user_id: int) -> list[tuple[int, str]]:
     return _CON.execute(
         """SELECT c.chat_id, c.title
             FROM chat AS c, in_chat as i
@@ -109,7 +110,7 @@ def get_chats_where_winner(user_id: int) -> List[Tuple[int, str]]:
 
 def get_raffle_data(
     chat_id: int,
-) -> Tuple[int, Timestamp, Timestamp, int, List[Timestamp], List[str], List[int]]:
+) -> tuple[int, Timestamp, Timestamp, int, list[Timestamp], list[str], list[int]]:
     return _CON.execute("SELECT * FROM raffle WHERE chat_id = %s", [chat_id]).fetchone()
 
 
@@ -128,7 +129,7 @@ def save_raffle_data(
         """INSERT INTO raffle
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (chat_id)
-                    DO UPDATE SET 
+                    DO UPDATE SET
                         start_date = EXCLUDED.start_date,
                         end_date = EXCLUDED.end_date,
                         entry_fee = EXCLUDED.entry_fee,
@@ -158,7 +159,7 @@ def save_user_or_ignore(user_id: int) -> None:
     _CON.commit()
 
 
-def save_chat_or_ignore(chat_id: int, title: str, admin_ids: List[int]) -> None:
+def save_chat_or_ignore(chat_id: int, title: str, admin_ids: list[int]) -> None:
     _CON.execute(
         """INSERT INTO chat (chat_id, title, admins)
                             VALUES (%s, %s, %s)
@@ -183,7 +184,7 @@ def register_user(chat_id: int, user_id: int) -> None:
                             VALUES (%s, %s)""",
             (user_id, chat_id),
         )
-    except PSErrors.UniqueViolation as e:
+    except pserrors.UniqueViolation as e:
         _CON.rollback()
         raise AlreadyRegisteredError from e
     else:
@@ -191,10 +192,8 @@ def register_user(chat_id: int, user_id: int) -> None:
 
 
 def register_user_or_ignore(chat_id: int, user_id: int) -> None:
-    try:
+    with suppress(AlreadyRegisteredError):
         register_user(chat_id, user_id)
-    except AlreadyRegisteredError:
-        pass
 
 
 def admin_cycle_winners(winner_id: int, chat_id: int) -> None:
