@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import pytest
 from pandas import Timestamp
 from pandas.testing import assert_frame_equal
@@ -70,9 +68,6 @@ class TestUtils:
 
         assert results == expected_results
 
-        # for case, ex_res in zip(test_cases, expected_results):
-        #    assert int_price_to_str(case) == ex_res
-
     def test_remove_emojis(self):
         assert remove_emojis("💩") == " "
         assert (
@@ -108,8 +103,8 @@ class TestGraphSave:
         start_date = Timestamp("2022-08-01 03:15:00")
         end_date = Timestamp("2022-08-12 03:15:00")
         entry_fee = 1
-        df = read_excel_to_df(file_path, start_date, end_date)
-        raffle_data = RaffleData(start_date, end_date, entry_fee, df)
+        raffle_dataframe = read_excel_to_df(file_path, start_date, end_date)
+        raffle_data = RaffleData(start_date, end_date, entry_fee, raffle_dataframe)
         save_raffle(1, 1, raffle_data)
         raffle_from_db = get_raffle(1)
         delete_raffle_data(1)
@@ -119,5 +114,5 @@ class TestGraphSave:
 
         # behavior that get_raffle returns without index and
         # read returns with probably should be changed.
-        df.set_index("date", inplace=True)
-        assert_frame_equal(df, raffle_from_db.df)
+        raffle_dataframe = raffle_dataframe.set_index("date")
+        assert_frame_equal(raffle_dataframe, raffle_from_db.df)

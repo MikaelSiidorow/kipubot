@@ -1,3 +1,6 @@
+import logging
+from pathlib import Path
+
 import psycopg.errors as pserrors
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, filters
@@ -6,12 +9,14 @@ from kipubot.constants import STRINGS
 from kipubot.errors import NoEntriesError, NoRaffleError
 from kipubot.utils import generate_expected, generate_graph
 
-GRAPH_TYPE = dict(
-    expected="expected",
-    odotusarvo="expected",
-    graph="graph",
-    kuvaaja="graph",
-)
+GRAPH_TYPE = {
+    "expected": "expected",
+    "odotusarvo": "expected",
+    "graph": "graph",
+    "kuvaaja": "graph",
+}
+
+_logger = logging.getLogger(__name__)
 
 
 def get_graph_img(graph_type: str) -> str:
@@ -31,7 +36,7 @@ async def graph(
         or not update.message
         or not update.message.text
     ):
-        return None
+        return
 
     chat_id = update.effective_chat.id
     chat_title = (
@@ -47,24 +52,26 @@ async def graph(
         else:
             generate_graph(graph_path, chat_id, chat_title)
 
-        with open(graph_path, "rb") as f:
+        with Path(graph_path).open("rb") as f:
             await update.message.reply_photo(photo=f)
 
     except NoRaffleError:
         await update.message.reply_text(
-            STRINGS["no_raffle"] % {"chat_title": chat_title}
+            STRINGS["no_raffle"] % {"chat_title": chat_title},
         )
     except NoEntriesError:
         await update.message.reply_text(
-            STRINGS["no_entries"] % {"chat_title": chat_title}
+            STRINGS["no_entries"] % {"chat_title": chat_title},
         )
-    except pserrors.Error as e:
-        print(e)
+    except pserrors.Error:
+        _logger.exception("psycopg error")
         await update.message.reply_text(STRINGS["raffle_db_error"])
     except FileNotFoundError:
         await update.message.reply_text(STRINGS["no_data"] % {"chat_title": chat_title})
 
 
 graph_handler = CommandHandler(
-    ["kuvaaja", "graph", "odotusarvo", "expected"], graph, ~filters.ChatType.PRIVATE
+    ["kuvaaja", "graph", "odotusarvo", "expected"],
+    graph,
+    ~filters.ChatType.PRIVATE,
 )

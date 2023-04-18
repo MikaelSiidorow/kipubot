@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Main kipubot file for running the bot."""
 
 from telegram.ext import ApplicationBuilder, PicklePersistence

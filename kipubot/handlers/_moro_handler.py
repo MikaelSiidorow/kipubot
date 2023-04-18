@@ -8,7 +8,7 @@ from kipubot.errors import AlreadyRegisteredError
 
 async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat or not update.effective_user or not update.message:
-        return None
+        return
 
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -20,11 +20,11 @@ async def hello(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
     except AlreadyRegisteredError:
         await update.message.reply_text(
-            STRINGS["double_moro"] % {"username": username, "chat_title": chat}
+            STRINGS["double_moro"] % {"username": username, "chat_title": chat},
         )
     else:
         await update.message.reply_text(
-            STRINGS["moro"] % {"username": username, "chat_title": chat}
+            STRINGS["moro"] % {"username": username, "chat_title": chat},
         )
 
 

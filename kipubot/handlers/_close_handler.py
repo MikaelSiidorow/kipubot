@@ -11,7 +11,7 @@ from kipubot.db import (
 
 async def close(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_chat or not update.effective_user or not update.message:
-        return None
+        return
 
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -26,7 +26,7 @@ async def close(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     close_raffle(chat_id)
 
     await update.message.reply_text(
-        STRINGS["close_confirmation"] % {"username": update.effective_user.username}
+        STRINGS["close_confirmation"] % {"username": update.effective_user.username},
     )
 
 

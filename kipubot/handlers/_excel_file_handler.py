@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters
@@ -31,14 +31,13 @@ async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     base_path = f"data/{dm_id}"
     excel_path = base_path + "/data.xlsx"
 
-    if not os.path.exists(base_path):
-        os.mkdir(base_path)
+    Path(base_path).mkdir(parents=True, exist_ok=True)
 
     await file.download_to_drive(excel_path)
 
     if not validate_excel(excel_path):
         await update.message.reply_text(STRINGS["invalid_file"])
-        os.remove(excel_path)
+        Path(excel_path).unlink()
         return ConversationHandler.END
 
     chat_buttons = []
@@ -48,7 +47,7 @@ async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             InlineKeyboardButton(
                 STRINGS["chat_button"] % {"chat_title": chat_title},
                 callback_data=f"raffle:chat_selected:{chat_id}:{chat_title}",
-            )
+            ),
         )
 
     keyboard = [
@@ -59,12 +58,14 @@ async def excel_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        STRINGS["choose_channel"], reply_markup=reply_markup
+        STRINGS["choose_channel"],
+        reply_markup=reply_markup,
     )
 
     return ConversationHandler.END
 
 
 excel_file_handler = MessageHandler(
-    filters.Document.MimeType(EXCEL_MIME) & filters.ChatType.PRIVATE, excel_file
+    filters.Document.MimeType(EXCEL_MIME) & filters.ChatType.PRIVATE,
+    excel_file,
 )

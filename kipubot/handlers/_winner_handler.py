@@ -32,7 +32,7 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         or not update.message.entities
         or not update.message.text
     ):
-        return None
+        return
 
     # only usable by admin, previous winner (in case of typos) and current winner
     # usage: /winner @username
@@ -44,7 +44,7 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if len(ent) != TWO_ENTITIES or ent[1].type != MessageEntityType.MENTION:
         await update.message.reply_text(STRINGS["invalid_winner_usage"])
-        return None
+        return
 
     username = update.message.text.split(" ")[1][1:]
 
@@ -97,10 +97,12 @@ async def winner(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     await update.message.reply_text(
-        STRINGS["winner_confirmation"] % {"username": username}
+        STRINGS["winner_confirmation"] % {"username": username},
     )
 
 
 winner_handler = CommandHandler(
-    ["voittaja", "winner"], winner, ~filters.ChatType.PRIVATE
+    ["voittaja", "winner"],
+    winner,
+    ~filters.ChatType.PRIVATE,
 )

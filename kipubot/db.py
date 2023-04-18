@@ -1,10 +1,13 @@
 """Database connection and queries for Kipubot."""
 
 import logging
+from collections.abc import Generator
 from contextlib import contextmanager, suppress
+from typing import Any
 
 import psycopg.errors as pserrors
 from pandas import Timestamp
+from psycopg import Connection
 from psycopg_pool import ConnectionPool
 
 from kipubot import config
@@ -19,7 +22,7 @@ _logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def logging_connection():
+def logging_connection() -> Generator[Connection[Any], None, None]:
     """Log errors while connecting to the database."""
     try:
         _logger.info("Getting db connection...")
@@ -33,7 +36,7 @@ def logging_connection():
         _logger.info("Freeing database connection...")
 
 
-def init_db():
+def init_db() -> None:
     """Initialize the database tables if they don't exist."""
     with logging_connection() as conn:
         conn.execute(
@@ -43,13 +46,13 @@ def init_db():
                         admins BIGINT[],
                         prev_winners BIGINT[],
                         cur_winner BIGINT
-                    )"""
+                    )""",
         )
 
         conn.execute(
             """CREATE TABLE IF NOT EXISTS chat_user (
                         user_id BIGINT PRIMARY KEY
-                    )"""
+                    )""",
         )
 
         conn.execute(
@@ -57,7 +60,7 @@ def init_db():
                         user_id BIGINT REFERENCES chat_user(user_id),
                         chat_id BIGINT REFERENCES chat(chat_id),
                         PRIMARY KEY (user_id, chat_id)
-                    )"""
+                    )""",
         )
 
         conn.execute(
@@ -73,16 +76,16 @@ def init_db():
                         chat_id BIGINT REFERENCES chat(chat_id),
                         user_id BIGINT REFERENCES chat_user(user_id)
 
-                    )"""
+                    )""",
         )
 
         conn.execute(
-            """CREATE INDEX IF NOT EXISTS raffle_chat_id_idx ON raffle (chat_id)"""
+            """CREATE INDEX IF NOT EXISTS raffle_chat_id_idx ON raffle (chat_id)""",
         )
 
         conn.execute(
             """CREATE UNIQUE INDEX IF NOT EXISTS raffle_chat_id_active
-                ON raffle (chat_id) WHERE active = TRUE"""
+                ON raffle (chat_id) WHERE active = TRUE""",
         )
 
 
@@ -104,7 +107,8 @@ def get_admin_ids(chat_id: int) -> list[int]:
     """Get a list of all admin IDs in a chat."""
     with logging_connection() as conn:
         data = conn.execute(
-            "SELECT admins FROM chat WHERE chat_id = %s", (chat_id,)
+            "SELECT admins FROM chat WHERE chat_id = %s",
+            (chat_id,),
         ).fetchone()
         return data[0] if data else []
 
@@ -113,7 +117,8 @@ def get_prev_winner_ids(chat_id: int) -> list[int]:
     """Get a list of all previous winner IDs in a chat."""
     with logging_connection() as conn:
         data = conn.execute(
-            "SELECT prev_winners FROM chat WHERE chat_id = %s", (chat_id,)
+            "SELECT prev_winners FROM chat WHERE chat_id = %s",
+            (chat_id,),
         ).fetchone()
         return data[0] if data else []
 
@@ -122,7 +127,8 @@ def get_winner_id(chat_id: int) -> int:
     """Get the current winner ID in a chat."""
     with logging_connection() as conn:
         data = conn.execute(
-            "SELECT cur_winner FROM chat WHERE chat_id = %s", (chat_id,)
+            "SELECT cur_winner FROM chat WHERE chat_id = %s",
+            (chat_id,),
         ).fetchone()
         return data[0] if data else None
 
@@ -162,7 +168,7 @@ def get_raffle_data(
         entry fee, dates, entries, and amounts.
     """
     with logging_connection() as conn:
-        return conn.execute(
+        return conn.execute(  # type: ignore
             """SELECT * FROM raffle WHERE chat_id = %s AND active = true""",
             [chat_id],
         ).fetchone()
@@ -241,7 +247,7 @@ def close_raffle(
         conn.commit()
 
 
-def delete_raffle_data(chat_id: int):
+def delete_raffle_data(chat_id: int) -> None:
     """Delete the raffle data for a chat."""
     with logging_connection() as conn:
         conn.execute("""DELETE FROM raffle where chat_id=%s""", (chat_id,))
@@ -272,7 +278,7 @@ def save_chat_or_ignore(chat_id: int, title: str, admin_ids: list[int]) -> None:
         )
 
 
-def delete_chat(chat_id: int):
+def delete_chat(chat_id: int) -> None:
     """Delete a chat from the database."""
     with logging_connection() as conn:
         conn.execute("""DELETE FROM chat where chat_id=%s""", (chat_id,))

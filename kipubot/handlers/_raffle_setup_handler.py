@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import Literal
 
 import pandas as pd
@@ -72,13 +72,15 @@ def raffle_keyboard(*, has_existing: bool = False) -> InlineKeyboardMarkup:
         keyboard = [
             [
                 InlineKeyboardButton(
-                    STRINGS["update_raffle_button"], callback_data="raffle:setup:old"
-                )
+                    STRINGS["update_raffle_button"],
+                    callback_data="raffle:setup:old",
+                ),
             ],
             [
                 InlineKeyboardButton(
-                    STRINGS["cancel_button"], callback_data="raffle:cancel"
-                )
+                    STRINGS["cancel_button"],
+                    callback_data="raffle:cancel",
+                ),
             ],
         ]
         return InlineKeyboardMarkup(keyboard)
@@ -86,8 +88,9 @@ def raffle_keyboard(*, has_existing: bool = False) -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(
-                STRINGS["new_raffle_button"], callback_data="raffle:setup:new"
-            )
+                STRINGS["new_raffle_button"],
+                callback_data="raffle:setup:new",
+            ),
         ],
         [InlineKeyboardButton(STRINGS["cancel_button"], callback_data="raffle:cancel")],
     ]
@@ -108,10 +111,12 @@ def date_keyboard(which: Literal["start", "end"]) -> InlineKeyboardMarkup:
         InlineKeyboardButton("-1 h", callback_data=f"raffle:date:{which}:update:-1"),
         InlineKeyboardButton("-30 m", callback_data=f"raffle:date:{which}:update:-0.5"),
         InlineKeyboardButton(
-            "-15 m", callback_data=f"raffle:date:{which}:update:-0.25"
+            "-15 m",
+            callback_data=f"raffle:date:{which}:update:-0.25",
         ),
         InlineKeyboardButton(
-            "+15 m", callback_data=f"raffle:date:{which}:update:+0.25"
+            "+15 m",
+            callback_data=f"raffle:date:{which}:update:+0.25",
         ),
         InlineKeyboardButton("+30 m", callback_data=f"raffle:date:{which}:update:+0.5"),
         InlineKeyboardButton("+1 h", callback_data=f"raffle:date:{which}:update:+1"),
@@ -124,7 +129,7 @@ def date_keyboard(which: Literal["start", "end"]) -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 STRINGS["confirm_button"],
                 callback_data=f"raffle:date:{which}:confirmed",
-            )
+            ),
         ],
         [InlineKeyboardButton(STRINGS["cancel_button"], callback_data="raffle:cancel")],
     ]
@@ -142,8 +147,9 @@ def fee_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
-                STRINGS["finish_raffle_button"], callback_data="raffle:fee:confirmed"
-            )
+                STRINGS["finish_raffle_button"],
+                callback_data="raffle:fee:confirmed",
+            ),
         ],
         [InlineKeyboardButton(STRINGS["cancel_button"], callback_data="raffle:cancel")],
     ]
@@ -188,12 +194,13 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
             ) % {"chat_title": chat_title}
 
             await query.message.edit_text(
-                msg, reply_markup=raffle_keyboard(has_existing=True)
+                msg,
+                reply_markup=raffle_keyboard(has_existing=True),
             )
 
         except NoRaffleError:
             msg = (STRINGS["raffle_setup_base"] + STRINGS["raffle_setup_new"]) % {
-                "chat_title": chat_title
+                "chat_title": chat_title,
             }
 
             await query.message.edit_text(msg, reply_markup=raffle_keyboard())
@@ -205,7 +212,8 @@ async def setup_raffle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
 
 
 async def setup_start_date(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> str | int:
     query = update.callback_query
     if not query or not query.message or not query.data or not context.user_data:
@@ -226,7 +234,7 @@ async def setup_start_date(
         context.user_data["raffle_start_date"] = new_date
 
     if query.data == "raffle:setup:new" or query.data.startswith(
-        "raffle:date:start:update"
+        "raffle:date:start:update",
     ):
         chat_title = context.user_data["raffle_chat_title"]
         start_date = context.user_data["raffle_start_date"]
@@ -244,7 +252,8 @@ async def setup_start_date(
 
 
 async def setup_end_date(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> str | int:
     query = update.callback_query
     if not query or not query.message or not query.data or not context.user_data:
@@ -265,7 +274,7 @@ async def setup_end_date(
         context.user_data["raffle_end_date"] = new_date
 
     if query.data == "raffle:date:start:confirmed" or query.data.startswith(
-        "raffle:date:end:update"
+        "raffle:date:end:update",
     ):
         chat_title = context.user_data["raffle_chat_title"]
         start_date = context.user_data["raffle_start_date"]
@@ -316,7 +325,7 @@ async def setup_fee(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str |
         context.user_data["raffle_fee"] = new_fee
 
     if query.data == "raffle:date:end:confirmed" or query.data.startswith(
-        "raffle:fee:update"
+        "raffle:fee:update",
     ):
         chat_title = context.user_data["raffle_chat_title"]
         start_date = context.user_data["raffle_start_date"]
@@ -369,12 +378,12 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
         raffle_id, (start_date, end_date, entry_fee) = get_raffle_stats(chat_id)
         excel_path = f"data/{dm_id}/data.xlsx"
-        df = read_excel_to_df(excel_path, start_date, end_date)
-        raffle_data = RaffleData(start_date, end_date, entry_fee, df)
+        raffle_df = read_excel_to_df(excel_path, start_date, end_date)
+        raffle_data = RaffleData(start_date, end_date, entry_fee, raffle_df)
         update_raffle(raffle_id, raffle_data)
 
         await query.message.edit_text(
-            STRINGS["updated_raffle"] % {"chat_title": chat_title}
+            STRINGS["updated_raffle"] % {"chat_title": chat_title},
         )
         await context.bot.send_message(
             chat_id,
@@ -383,7 +392,7 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         )
         # perform cleanup
         context.user_data.clear()
-        os.remove(excel_path)
+        Path(excel_path).unlink(missing_ok=True)
 
         return ConversationHandler.END
 
@@ -396,8 +405,8 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         fee = context.user_data["raffle_fee"]
 
         excel_path = f"data/{dm_id}/data.xlsx"
-        df = read_excel_to_df(excel_path, start_date, end_date)
-        raffle_data = RaffleData(start_date, end_date, fee, df)
+        raffle_df = read_excel_to_df(excel_path, start_date, end_date)
+        raffle_data = RaffleData(start_date, end_date, fee, raffle_df)
         save_raffle(chat_id, user_id, raffle_data)
 
         msg = (
@@ -423,7 +432,7 @@ async def finish_setup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
         # perform cleanup
         context.user_data.clear()
-        os.remove(excel_path)
+        Path(excel_path).unlink(missing_ok=True)
 
         return ConversationHandler.END
 
@@ -439,10 +448,12 @@ raffle_setup_handler = ConversationHandler(
         ],
         "raffle_setup_state:start_date": [
             CallbackQueryHandler(
-                setup_start_date, pattern="^raffle:date:start:update.*$"
+                setup_start_date,
+                pattern="^raffle:date:start:update.*$",
             ),
             CallbackQueryHandler(
-                setup_end_date, pattern="^raffle:date:start:confirmed$"
+                setup_end_date,
+                pattern="^raffle:date:start:confirmed$",
             ),
         ],
         "raffle_setup_state:end_date": [

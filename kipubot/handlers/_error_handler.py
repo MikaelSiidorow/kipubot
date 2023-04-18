@@ -47,11 +47,14 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     # Finally, send the message if DEVELOPER_CHAT_ID is set.
     if config.DEVELOPER_CHAT_ID:
         await context.bot.send_message(
-            chat_id=config.DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML
+            chat_id=config.DEVELOPER_CHAT_ID,
+            text=message,
+            parse_mode=ParseMode.HTML,
         )
 
     # Also send a message to the user who triggered the error.
     if isinstance(update, Update) and update.effective_chat is not None:
         await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=STRINGS["server_error"]
+            chat_id=update.effective_chat.id,
+            text=STRINGS["server_error"],
         )

@@ -1,13 +1,14 @@
 """Kipubot - A Telegram bot for graphing friday raffles."""
 
 import logging
-import os
+from pathlib import Path
 
 from pydantic import BaseSettings
 
 # LOGGING CONFIG
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
 )
 
 
@@ -29,9 +30,7 @@ class Settings(BaseSettings):
 config = Settings()
 
 
-# CHECK/CREATE DATA DIRECTORY
-if not os.path.exists("data"):
-    logging.info("Creating ./data/ directory...")
-    os.mkdir("data")
+logging.info("Creating ./data/ directory... ")
+Path("data").mkdir(exist_ok=True)
 
 __all__ = ("config",)
