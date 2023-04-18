@@ -1,22 +1,29 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Main kipubot file for running the bot."""
 
 from telegram.ext import ApplicationBuilder, PicklePersistence
-from kipubot import BOT_TOKEN
-from kipubot.handlers import (start_handler, moro_handler, excel_file_handler,
-                              bot_added_handler, winner_handler, graph_handler,
-                              expected_value_handler, raffle_setup_handler, no_dm_handler,
-                              error_handler)
+
+from kipubot import config
+from kipubot.db import init_db
+from kipubot.handlers import (
+    bot_added_handler,
+    close_handler,
+    error_handler,
+    excel_file_handler,
+    graph_handler,
+    moro_handler,
+    no_dm_handler,
+    raffle_setup_handler,
+    start_handler,
+    winner_handler,
+)
 
 
 def main() -> None:
-    persistence = PicklePersistence(filepath='data/.pkl')
-    app = (
-        ApplicationBuilder()
-        .token(BOT_TOKEN)
-        .persistence(persistence)
-        .build()
-    )
+    """Run the bot with all handlers."""
+    # INITIALIZE DB AND CREATE TABLES IF THEY DON'T EXIST
+    init_db()
+    persistence = PicklePersistence(filepath="data/.pkl")
+    app = ApplicationBuilder().token(config.BOT_TOKEN).persistence(persistence).build()
 
     app.add_handler(start_handler)
 
@@ -27,7 +34,7 @@ def main() -> None:
     app.add_handler(moro_handler)
     app.add_handler(graph_handler)
     app.add_handler(winner_handler)
-    app.add_handler(expected_value_handler)
+    app.add_handler(close_handler)
 
     # warning about using a command in a private chat
     app.add_handler(no_dm_handler)

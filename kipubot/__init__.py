@@ -1,45 +1,36 @@
-import os
-import sys
-import logging
-from dotenv import load_dotenv
-import kipubot.db
+"""Kipubot - A Telegram bot for graphing friday raffles."""
 
-load_dotenv()
+import logging
+from pathlib import Path
+
+from pydantic import BaseSettings
 
 # LOGGING CONFIG
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
 )
 
 
-# ENV VARIABLES
-BOT_TOKEN = os.getenv('BOT_TOKEN', default=None)
-DATABASE_URL = os.getenv('DATABASE_URL', default=None)
-DEVELOPER_CHAT_ID = os.getenv('DEVELOPER_CHAT_ID', default=None)
-MODE = os.getenv('MODE', default=None)
-if BOT_TOKEN is None and MODE != "TEST":
-    logging.error('Bot token is not set!')
-    sys.exit(1)
+# ENV CONFIG
+class Settings(BaseSettings):
+    """Configuration for the bot."""
 
-if DATABASE_URL is None:
-    logging.error('Database URL is not set!')
-    sys.exit(1)
+    BOT_TOKEN: str
+    DATABASE_URL: str
+    DEVELOPER_CHAT_ID: str | None = None
 
-if DEVELOPER_CHAT_ID is None:
-    logging.warning('Developer chat ID is not set!')
+    class Config:
+        """Environment variables to load from."""
+
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
-# INITIALIZE DB AND CREATE TABLES IF THEY DON'T EXIST
-kipubot.db._init_db(DATABASE_URL)  # pylint: disable=protected-access
+config = Settings()
 
-# CHECK/CREATE DATA DIRECTORY
-if not os.path.exists('data'):
-    logging.info('Creating ./data/ directory...')
-    os.mkdir('data')
 
-__all__ = (
-    'BOT_TOKEN',
-    'DATABASE_URL',
-    'DEVELOPER_CHAT_ID'
-)
+logging.info("Creating ./data/ directory... ")
+Path("data").mkdir(exist_ok=True)
+
+__all__ = ("config",)

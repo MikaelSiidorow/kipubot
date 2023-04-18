@@ -1,10 +1,13 @@
+"""Custom exceptions for Kipubot."""
+
+
 class NoEntriesError(Exception):
-    pass
+    """Raised when there are no entries in a raffle."""
 
 
 class NoRaffleError(Exception):
-    pass
+    """Raised when there is no raffle in a chat."""
 
 
 class AlreadyRegisteredError(Exception):
-    pass
+    """Raised when a user tries to register twice."""

@@ -1,13 +1,24 @@
+import logging
+
+import psycopg.errors as pserrors
 from telegram import Update
-from telegram.ext import ContextTypes, ChatMemberHandler
 from telegram.constants import ChatMemberStatus
-import psycopg.errors as PSErrors
+from telegram.ext import ChatMemberHandler, ContextTypes
+
 from kipubot.constants import STRINGS
-from kipubot.db import (save_chat_or_ignore,
-                        save_user_or_ignore, register_user_or_ignore)
+from kipubot.db import register_user_or_ignore, save_chat_or_ignore, save_user_or_ignore
+
+_logger = logging.getLogger(__name__)
 
 
 async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if (
+        not update.my_chat_member
+        or not update.effective_chat
+        or not update.effective_user
+    ):
+        return
+
     # when bot is added to channel:
     # -> add the channel to a database
     # -> set the adder as the current winner of the channel
@@ -15,7 +26,11 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if update.my_chat_member.new_chat_member.status != ChatMemberStatus.LEFT:
         chat_id = update.effective_chat.id
-        title = update.effective_chat.title
+        title = (
+            update.effective_chat.title
+            if update.effective_chat.title
+            else "untitled chat"
+        )
         user_id = update.effective_user.id
         admins = await update.effective_chat.get_administrators()
         admin_ids = list(set([admin.user.id for admin in admins] + [user_id]))
@@ -25,19 +40,22 @@ async def bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             save_user_or_ignore(user_id)
             register_user_or_ignore(chat_id, user_id)
 
-        except PSErrors.IntegrityError as e:
-            print('SQLite Error: ' + str(e))
+        except pserrors.IntegrityError:
+            _logger.exception("IntegrityError")
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=STRINGS['unknown_error']
+                text=STRINGS["unknown_error"],
             )
         else:
             # Kiitos pääsystä! -stigu
             await context.bot.send_sticker(
                 chat_id=chat_id,
-                sticker='CAACAgQAAxkBAAIBPmLicTHP2Xv8IcFzxHYocjLRFBvQAAI5AAMcLHsXd9jLHwYNcSEpBA')
+                sticker="CAACAgQAAxkBAAIBPmLicTHP2Xv8IcFzxHYocjLRFBvQAAI5AAMcLHsXd9jLHwYNcSEpBA",
+            )
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=STRINGS['moro_prompt'] % {'chat_title': title})
+                text=STRINGS["moro_prompt"] % {"chat_title": title},
+            )
+
 
 bot_added_handler = ChatMemberHandler(bot_added, -1)

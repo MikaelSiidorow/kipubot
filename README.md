@@ -16,15 +16,14 @@ Add the bot on [Telegram](https://t.me/NoPainNoGraphbot) into your group and enj
 
 ### Docker (Recommended)
 
-1. Set `PYTHONPATH=${PYTHONPATH}:kipubot` in .env
-2. Set `BOT_TOKEN` in .env
-3. `docker-compose -f docker-compose.dev.yml up`
-### Pipenv
+1. Set `BOT_TOKEN` in .env
+2. `docker compose -f docker-compose.dev.yml up`
 
-Using [pipenv](https://pipenv.pypa.io/en/latest/):
+### Poetry
 
-1. Set `PYTHONPATH=${PYTHONPATH}:kipubot` in .env
+Using [poetry](https://python-poetry.org/docs/):
+
 2. Set `BOT_TOKEN` in .env
 3. Set `DATABASE_URL` in .env
-4. pipenv install --dev
-5. pipenv run dev
+4. poetry install
+5. poetry run poe dev

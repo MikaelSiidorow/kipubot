@@ -3,3 +3,5 @@ env/
 data/
 .pytype/
 .pytest_cache/
+__pycache__/
+.vscode
